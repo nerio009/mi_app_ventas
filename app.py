@@ -5,16 +5,33 @@ from firebase_admin import credentials, firestore
 
 st.title("Registro de ventas semanal 💰")
 
-# 🔐 Cargar credenciales desde secrets (Streamlit Cloud)
+# 🔐 FIREBASE CONFIG
 db = None
 
 if not firebase_admin._apps:
     try:
-        cred = credentials.Certificate(dict(st.secrets["firebase"]))
+        cred = credentials.Certificate({
+            "type": "service_account",
+            "project_id": "mi-app-de-ventas-6f000",
+            "private_key_id": "93a6db78d19b1a2cf27b5cce17ee11da24aa9a0b",
+            "private_key": """-----BEGIN PRIVATE KEY-----
+(tu clave larga)
+-----END PRIVATE KEY-----""",
+            "client_email": "firebase-adminsdk-fbsvc@mi-app-de-ventas-6f000.iam.gserviceaccount.com",
+            "client_id": "108854541297629440482",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40mi-app-de-ventas-6f000.iam.gserviceaccount.com"
+        })
+
         firebase_admin.initialize_app(cred)
         db = firestore.client()
-    except:
-        st.warning("Firebase no configurado aún ⚠️")
+
+    except Exception as e:
+        st.error("Error conectando Firebase")
+        st.write(e)
+
 else:
     db = firestore.client()
 
@@ -58,16 +75,16 @@ with st.form("form_venta", clear_on_submit=True):
                         "precio": precio,
                         "fecha": fecha_actual
                     })
-                    st.toast("Venta guardada ✔️")
+                    st.success("Venta guardada ✔️")
                 else:
-                    st.warning("No se guardó: Firebase no configurado")
+                    st.warning("No hay conexión con Firebase")
 
             except:
                 st.error("Precio inválido ❌")
         else:
             st.warning("Completa todos los campos ⚠️")
 
-# 🔄 LEER DATOS DESDE FIREBASE
+# LEER DATOS
 ventas = []
 
 if db:
@@ -75,13 +92,13 @@ if db:
     for v in ventas_ref:
         ventas.append(v.to_dict())
 
-# Convertir a estructura por día
+# AGRUPAR
 ventas_por_dia = {d: [] for d in dias}
 
 for v in ventas:
     ventas_por_dia[v["dia"]].append(v)
 
-# Mostrar ventas del día
+# MOSTRAR
 st.subheader(f"Ventas de {dia}")
 
 total_dia = 0
@@ -92,7 +109,7 @@ for v in ventas_por_dia[dia]:
 
 st.write(f"💰 Total del día: {total_dia} Bs")
 
-# Resumen semanal
+# RESUMEN
 st.subheader("📊 Resumen semanal")
 
 total_semana = 0
@@ -109,7 +126,7 @@ for d in dias:
     total_semana += total_d
     cantidad_total += cantidad_d
 
-# Inversión
+# INVERSIÓN
 inversion = st.number_input("💸 Inversión semanal", min_value=0.0)
 
 ganancia = total_semana - inversion
@@ -118,7 +135,7 @@ st.write("🧾 Total vendido:", total_semana)
 st.write("📦 Total de ventas:", cantidad_total)
 st.write("💵 Ganancia:", ganancia)
 
-# Resultado
+# RESULTADO
 if ganancia > 0:
     st.success("Resultado: Hubo ganancia 💰")
 elif ganancia == 0:
