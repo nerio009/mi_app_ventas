@@ -6,11 +6,17 @@ from firebase_admin import credentials, firestore
 st.title("Registro de ventas semanal 💰")
 
 # 🔐 Cargar credenciales desde secrets (Streamlit Cloud)
-if not firebase_admin._apps:
-    cred = credentials.Certificate(dict(st.secrets["firebase"]))
-    firebase_admin.initialize_app(cred)
+db = None
 
-db = firestore.client()
+if not firebase_admin._apps:
+    try:
+        cred = credentials.Certificate(dict(st.secrets["firebase"]))
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+    except:
+        st.warning("Firebase no configurado aún ⚠️")
+else:
+    db = firestore.client()
 
 # FUNCIÓN fecha
 def obtener_fecha(dia):
@@ -45,25 +51,29 @@ with st.form("form_venta", clear_on_submit=True):
             try:
                 precio = float(precio_texto)
 
-                db.collection("ventas").add({
-                    "dia": dia,
-                    "producto": producto,
-                    "precio": precio,
-                    "fecha": fecha_actual
-                })
+                if db:
+                    db.collection("ventas").add({
+                        "dia": dia,
+                        "producto": producto,
+                        "precio": precio,
+                        "fecha": fecha_actual
+                    })
+                    st.toast("Venta guardada ✔️")
+                else:
+                    st.warning("No se guardó: Firebase no configurado")
 
-                st.toast("Venta guardada ✔️")
             except:
                 st.error("Precio inválido ❌")
         else:
             st.warning("Completa todos los campos ⚠️")
 
 # 🔄 LEER DATOS DESDE FIREBASE
-ventas_ref = db.collection("ventas").stream()
-
 ventas = []
-for v in ventas_ref:
-    ventas.append(v.to_dict())
+
+if db:
+    ventas_ref = db.collection("ventas").stream()
+    for v in ventas_ref:
+        ventas.append(v.to_dict())
 
 # Convertir a estructura por día
 ventas_por_dia = {d: [] for d in dias}
