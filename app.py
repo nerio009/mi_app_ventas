@@ -14,9 +14,7 @@ if not firebase_admin._apps:
             "type": "service_account",
             "project_id": "mi-app-de-ventas-6f000",
             "private_key_id": "93a6db78d19b1a2cf27b5cce17ee11da24aa9a0b",
-            "private_key": """-----BEGIN PRIVATE KEY-----
-(tu clave larga)
------END PRIVATE KEY-----""",
+            "private_key": """"private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDJd0swIVACRh7s\nj5S49vzNU2HS+jCzotWhKyNDwwvVar32wms8xILdz8Tq4+qBATYrla164ildQT8u\n...\n-----END PRIVATE KEY-----\n",""",
             "client_email": "firebase-adminsdk-fbsvc@mi-app-de-ventas-6f000.iam.gserviceaccount.com",
             "client_id": "108854541297629440482",
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
