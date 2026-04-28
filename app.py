@@ -10,7 +10,7 @@ db = None
 
 try:
     if not firebase_admin._apps:
-        cred = credentials.Certificate("mi-app-de-ventas-xxxx.json")  # 👈 cambia el nombre aquí
+        cred = credentials.Certificate("mi-app-de-ventas-6f000-firebase-adminsdk-fbsvc-59f54e0558.json")  # 👈 cambia el nombre aquí
         firebase_admin.initialize_app(cred)
 
     db = firestore.client()
