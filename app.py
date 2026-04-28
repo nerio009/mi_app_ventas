@@ -5,35 +5,21 @@ from firebase_admin import credentials, firestore
 
 st.title("Registro de ventas semanal 💰")
 
-# 🔐 FIREBASE CONFIG
+# 🔐 CONEXIÓN A FIREBASE (USANDO JSON)
 db = None
 
-if not firebase_admin._apps:
-    try:
-        cred = credentials.Certificate({
-            "type": "service_account",
-            "project_id": "mi-app-de-ventas-6f000",
-            "private_key_id": "93a6db78d19b1a2cf27b5cce17ee11da24aa9a0b",
-            "private_key": """"private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDJd0swIVACRh7s\nj5S49vzNU2HS+jCzotWhKyNDwwvVar32wms8xILdz8Tq4+qBATYrla164ildQT8u\n...\n-----END PRIVATE KEY-----\n",""",
-            "client_email": "firebase-adminsdk-fbsvc@mi-app-de-ventas-6f000.iam.gserviceaccount.com",
-            "client_id": "108854541297629440482",
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40mi-app-de-ventas-6f000.iam.gserviceaccount.com"
-        })
-
+try:
+    if not firebase_admin._apps:
+        cred = credentials.Certificate("mi-app-de-ventas-xxxx.json")  # 👈 cambia el nombre aquí
         firebase_admin.initialize_app(cred)
-        db = firestore.client()
 
-    except Exception as e:
-        st.error("Error conectando Firebase")
-        st.write(e)
-
-else:
     db = firestore.client()
 
-# FUNCIÓN fecha
+except Exception as e:
+    st.error("Firebase no configurado correctamente ❌")
+    st.write(e)
+
+# FUNCIÓN FECHA
 def obtener_fecha(dia):
     dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
     
@@ -49,7 +35,7 @@ def obtener_fecha(dia):
 
 dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
 
-# Selección
+# SELECCIÓN
 dia = st.selectbox("Selecciona el día", dias)
 fecha_actual = obtener_fecha(dia)
 st.write("📅 Fecha:", fecha_actual)
@@ -86,9 +72,12 @@ with st.form("form_venta", clear_on_submit=True):
 ventas = []
 
 if db:
-    ventas_ref = db.collection("ventas").stream()
-    for v in ventas_ref:
-        ventas.append(v.to_dict())
+    try:
+        ventas_ref = db.collection("ventas").stream()
+        for v in ventas_ref:
+            ventas.append(v.to_dict())
+    except:
+        st.warning("Error leyendo datos")
 
 # AGRUPAR
 ventas_por_dia = {d: [] for d in dias}
