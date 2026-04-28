@@ -7,19 +7,15 @@ st.set_page_config(page_title="Ventas", layout="centered")
 
 st.title("Registro de ventas semanal 💰")
 
-# 🔐 CONEXIÓN A FIREBASE
-db = None
-
-try:
+# 🔐 CONEXIÓN CACHEADA
+@st.cache_resource
+def conectar_firebase():
     if not firebase_admin._apps:
         cred = credentials.Certificate("mi-app-de-ventas-6f000-firebase-adminsdk-fbsvc-59f54e0558.json")
         firebase_admin.initialize_app(cred)
+    return firestore.client()
 
-    db = firestore.client()
-
-except Exception as e:
-    st.error("Firebase no configurado correctamente ❌")
-    st.write(e)
+db = conectar_firebase()
 
 # 📅 FUNCIÓN FECHA
 def obtener_fecha(dia):
@@ -42,6 +38,21 @@ fecha_actual = obtener_fecha(dia)
 
 st.write("📅 Fecha:", fecha_actual)
 
+# 📥 CACHE DE DATOS (solo por día)
+@st.cache_data(ttl=5)
+def obtener_ventas_por_dia(dia):
+    ventas = []
+    try:
+        ref = db.collection("ventas").where("dia", "==", dia).stream()
+        for v in ref:
+            data = v.to_dict()
+            if "precio" in data:
+                ventas.append(data)
+    except Exception as e:
+        st.warning("Error leyendo datos")
+        st.write(e)
+    return ventas
+
 # 🧾 FORMULARIO
 with st.form("form_venta", clear_on_submit=True):
     producto = st.text_input("Producto")
@@ -57,66 +68,51 @@ with st.form("form_venta", clear_on_submit=True):
             st.error("El precio debe ser mayor a 0 ❌")
 
         else:
-            if db:
-                try:
-                    db.collection("ventas").add({
-                        "dia": dia,
-                        "producto": producto,
-                        "precio": float(precio),
-                        "fecha": fecha_actual,
-                        "timestamp": datetime.now()
-                    })
-                    st.success("Venta guardada ✔️")
+            try:
+                db.collection("ventas").add({
+                    "dia": dia,
+                    "producto": producto,
+                    "precio": float(precio),
+                    "fecha": fecha_actual,
+                    "timestamp": datetime.now()
+                })
 
-                except Exception as e:
-                    st.error("Error guardando en Firebase ❌")
-                    st.write(e)
-            else:
-                st.warning("No hay conexión con Firebase")
+                st.success("Venta guardada ✔️")
 
-# 📥 LEER DATOS
-ventas = []
+                # 🔥 refrescar cache
+                st.cache_data.clear()
 
-if db:
-    try:
-        ventas_ref = db.collection("ventas").stream()
-        for v in ventas_ref:
-            data = v.to_dict()
+            except Exception as e:
+                st.error("Error guardando en Firebase ❌")
+                st.write(e)
 
-            # Validación de datos
-            if "dia" in data and "precio" in data:
-                ventas.append(data)
+# 🔄 BOTÓN RECARGAR
+if st.button("🔄 Actualizar datos"):
+    st.cache_data.clear()
 
-    except Exception as e:
-        st.warning("Error leyendo datos")
-        st.write(e)
+# 📊 OBTENER VENTAS DEL DÍA
+ventas_dia = obtener_ventas_por_dia(dia)
 
-# 📊 AGRUPAR POR DÍA
-ventas_por_dia = {d: [] for d in dias}
-
-for v in ventas:
-    ventas_por_dia[v["dia"]].append(v)
-
-# 📅 MOSTRAR VENTAS DEL DÍA
+# 📅 MOSTRAR VENTAS
 st.subheader(f"Ventas de {dia}")
 
 total_dia = 0
 
-for v in ventas_por_dia[dia]:
+for v in ventas_dia:
     precio = float(v.get("precio", 0))
     st.write(f"{v.get('producto', 'Sin nombre')} - {precio} Bs")
     total_dia += precio
 
 st.write(f"💰 Total del día: {total_dia} Bs")
 
-# 📊 RESUMEN SEMANAL
+# 📊 RESUMEN SEMANAL (optimizado)
 st.subheader("📊 Resumen semanal")
 
 total_semana = 0
 cantidad_total = 0
 
 for d in dias:
-    ventas_d = ventas_por_dia[d]
+    ventas_d = obtener_ventas_por_dia(d)
 
     total_d = sum(float(v.get("precio", 0)) for v in ventas_d)
     cantidad_d = len(ventas_d)
@@ -135,7 +131,7 @@ st.write("🧾 Total vendido:", total_semana)
 st.write("📦 Total de ventas:", cantidad_total)
 st.write("💵 Ganancia:", ganancia)
 
-# 📈 RESULTADO FINAL
+# 📈 RESULTADO
 if ganancia > 0:
     st.success("Resultado: Hubo ganancia 💰")
 elif ganancia == 0:
