@@ -52,18 +52,31 @@ with st.form("form", clear_on_submit=True):
         else:
             st.warning("Completa los datos")
 
-# 📊 FILTRAR
+# 📊 FILTRAR POR DÍA
 ventas_dia = df[df["dia"] == dia]
 
 st.subheader(f"Ventas de {dia}")
 
 if not ventas_dia.empty:
-    st.dataframe(ventas_dia, use_container_width=True)
 
-    total = ventas_dia["precio"].sum()
-    st.write(f"💰 Total: {total} Bs")
+    # 📊 TABLA
+    st.dataframe(
+        ventas_dia[["id", "producto", "precio", "fecha"]],
+        use_container_width=True
+    )
 
-    # ❌ ELIMINAR VENTA
+    # 🧾 DETALLE CLARO
+    st.subheader("🧾 Detalle de ventas")
+
+    total_dia = 0
+
+    for _, v in ventas_dia.iterrows():
+        st.markdown(f"**🛒 {v['producto']}** — {v['precio']} Bs")
+        total_dia += v["precio"]
+
+    st.write(f"💰 Total del día: {total_dia} Bs")
+
+    # ❌ ELIMINAR
     st.subheader("Eliminar venta")
 
     id_eliminar = st.number_input("ID a eliminar", min_value=1, step=1)
@@ -75,16 +88,16 @@ if not ventas_dia.empty:
         st.rerun()
 
 else:
-    st.info("No hay ventas")
+    st.info("No hay ventas registradas")
 
 # 📊 RESUMEN SEMANAL
 st.subheader("📊 Resumen semanal")
 
 total_semana = df["precio"].sum() if not df.empty else 0
-cantidad = len(df)
+cantidad_total = len(df)
 
 st.write("🧾 Total vendido:", total_semana)
-st.write("📦 Total ventas:", cantidad)
+st.write("📦 Total de ventas:", cantidad_total)
 
 # 💸 GANANCIA
 inversion = st.number_input("💸 Inversión semanal", min_value=0.0)
