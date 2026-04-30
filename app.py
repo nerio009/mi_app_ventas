@@ -8,24 +8,32 @@ st.title("Registro de ventas semanal 💰")
 
 archivo = "ventas.csv"
 
-# 📅 FUNCIÓN FECHA
+# 📅 FUNCIÓN FECHA + SEMANA
 def obtener_fecha(dia):
     dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
     hoy = datetime.now()
-    return (hoy + timedelta(days=dias.index(dia) - hoy.weekday())).strftime("%d-%m-%Y")
+    fecha = hoy + timedelta(days=dias.index(dia) - hoy.weekday())
+    return fecha
+
+def obtener_semana(fecha):
+    return fecha.isocalendar()[1]
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
 # 📌 SELECCIÓN
 dia = st.selectbox("Selecciona el día", dias)
-fecha_actual = obtener_fecha(dia)
+fecha_obj = obtener_fecha(dia)
+fecha_actual = fecha_obj.strftime("%d-%m-%Y")
+semana_actual = obtener_semana(fecha_obj)
+
 st.write("📅 Fecha:", fecha_actual)
+st.write("📆 Semana:", semana_actual)
 
 # 📥 CARGAR DATOS
 if os.path.exists(archivo):
     df = pd.read_csv(archivo)
 else:
-    df = pd.DataFrame(columns=["id","dia","producto","precio","fecha"])
+    df = pd.DataFrame(columns=["id","dia","producto","precio","fecha","semana"])
 
 # 🧾 FORMULARIO
 with st.form("form", clear_on_submit=True):
@@ -41,7 +49,8 @@ with st.form("form", clear_on_submit=True):
                 "dia": dia,
                 "producto": producto,
                 "precio": precio,
-                "fecha": fecha_actual
+                "fecha": fecha_actual,
+                "semana": semana_actual
             }])
 
             df = pd.concat([df, nueva], ignore_index=True)
@@ -52,92 +61,47 @@ with st.form("form", clear_on_submit=True):
         else:
             st.warning("Completa los datos")
 
-# 📊 FILTRAR POR DÍA
+# 📊 MOSTRAR VENTAS DEL DÍA
 ventas_dia = df[df["dia"] == dia]
 
 st.subheader(f"Ventas de {dia}")
 
 if not ventas_dia.empty:
+    st.dataframe(ventas_dia[["id","producto","precio","fecha"]], use_container_width=True)
 
-    # 📊 TABLA
-    st.dataframe(
-        ventas_dia[["id", "producto", "precio", "fecha"]],
-        use_container_width=True
-    )
-
-    # 🧾 DETALLE
-    st.subheader("🧾 Detalle de ventas")
-
-    total_dia = 0
-
-    for _, v in ventas_dia.iterrows():
-        st.markdown(f"**🛒 {v['producto']}** — {v['precio']} Bs")
-        total_dia += v["precio"]
-
-    st.write(f"💰 Total del día: {total_dia} Bs")
-
-    # ❌ ELIMINAR POR ID
-    st.subheader("Eliminar venta")
-
-    id_eliminar = st.number_input("ID a eliminar", min_value=1, step=1)
-
-    if st.button("Eliminar"):
-        df = df[df["id"] != id_eliminar]
-        df.to_csv(archivo, index=False)
-        st.success("Venta eliminada")
-        st.rerun()
-
+    total = ventas_dia["precio"].sum()
+    st.write(f"💰 Total del día: {total} Bs")
 else:
-    st.info("No hay ventas registradas")
+    st.info("No hay ventas")
 
-# 📊 RESUMEN SEMANAL
-st.subheader("📊 Resumen semanal")
+# =========================
+# 📚 HISTORIAL SEMANAL
+# =========================
 
-total_semana = df["precio"].sum() if not df.empty else 0
-cantidad_total = len(df)
+st.subheader("📚 Historial")
 
-st.write("🧾 Total vendido:", total_semana)
-st.write("📦 Total de ventas:", cantidad_total)
+if st.button("Ver historial semanal"):
+    
+    if df.empty:
+        st.warning("No hay datos")
+    else:
+        semanas = df["semana"].unique()
 
-# 💸 GANANCIA
-inversion = st.number_input("💸 Inversión semanal", min_value=0.0)
-ganancia = total_semana - inversion
+        for s in sorted(semanas):
+            st.markdown(f"### 📆 Semana {s}")
 
-st.write("💵 Ganancia:", ganancia)
+            datos_semana = df[df["semana"] == s]
 
-if ganancia > 0:
-    st.success("Ganancia 💰")
-elif ganancia == 0:
-    st.info("Empate 🤝")
-else:
-    st.error("Pérdida ❌")
+            st.dataframe(
+                datos_semana[["dia","producto","precio","fecha"]],
+                use_container_width=True
+            )
 
-# 🧨 ELIMINAR TODO (CON CONFIRMACIÓN)
-st.subheader("⚠️ Zona peligrosa")
+            total_semana = datos_semana["precio"].sum()
+            st.write(f"💰 Total semana {s}: {total_semana} Bs")
 
-if "confirmar_borrado" not in st.session_state:
-    st.session_state.confirmar_borrado = False
+# 📊 RESUMEN GENERAL
+st.subheader("📊 Resumen general")
 
-if not st.session_state.confirmar_borrado:
-    if st.button("🗑 Eliminar TODO el registro"):
-        st.session_state.confirmar_borrado = True
-        st.rerun()
-
-else:
-    st.warning("¿Estás seguro que quieres borrar TODO?")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if st.button("✅ Sí, eliminar todo"):
-            df = df.iloc[0:0]
-            df.to_csv(archivo, index=False)
-
-            st.success("Todos los datos fueron eliminados")
-            st.session_state.confirmar_borrado = False
-            st.rerun()
-
-    with col2:
-        if st.button("❌ No, cancelar"):
-            st.session_state.confirmar_borrado = False
-            st.rerun()
+total_general = df["precio"].sum() if not df.empty else 0
+st.write("💰 Total general:", total_general)
