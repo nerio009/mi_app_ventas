@@ -82,7 +82,6 @@ with tab1:
             except:
                 st.error("Ingresa un número válido")
 
-    # 📊 MOSTRAR VENTAS
     ventas_dia = df[df["dia"] == dia]
 
     st.subheader(f"Ventas de {dia}")
@@ -157,39 +156,32 @@ with tab3:
             except:
                 st.error("Datos inválidos")
 
-    # 📊 LISTA + ELIMINAR INDIVIDUAL
+    # 📊 TABLA BONITA
     if not df_inv.empty:
 
-        st.subheader("Lista de inversores")
+        df_tabla = df_inv.copy()
+        df_tabla["monto"] = df_tabla["monto"].apply(bs)
+        df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
+        df_tabla["total"] = df_tabla["total"].apply(bs)
+        df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
 
-        for i, row in df_inv.iterrows():
+        st.dataframe(df_tabla, use_container_width=True)
 
-            col1, col2, col3 = st.columns([4,2,2])
+        st.subheader("Eliminar inversores")
 
-            with col1:
-                st.markdown(
-                    f"**{row['nombre']}** — {bs(row['monto'])} | "
-                    f"{row['porcentaje']}% → {bs(row['total'])}"
-                )
+        for i in range(len(df_inv)):
+            if st.button(f"🗑 Eliminar inversor {i}", key=f"del_{i}"):
+                df_inv = df_inv.drop(i).reset_index(drop=True)
+                df_inv.to_csv(archivo_inv, index=False)
 
-            with col2:
-                if st.button(f"🗑 {i}", key=f"del_{i}"):
-                    st.session_state[f"confirm_{i}"] = True
-
-            with col3:
-                if st.session_state.get(f"confirm_{i}", False):
-                    if st.button(f"✅ OK {i}", key=f"conf_{i}"):
-                        df_inv = df_inv.drop(i).reset_index(drop=True)
-                        df_inv.to_csv(archivo_inv, index=False)
-
-                        st.success("Eliminado")
-                        st.rerun()
+                st.success("Inversor eliminado")
+                st.rerun()
 
     else:
         st.info("No hay inversores registrados")
 
 # =========================
-# 🧨 BORRAR TODO (VENTAS + INVERSORES)
+# 🧨 BORRAR TODO
 # =========================
 st.subheader("⚠️ Modo prueba")
 
