@@ -7,6 +7,7 @@ st.set_page_config(page_title="Ventas", layout="centered")
 st.title("Registro de ventas semanal 💰")
 
 archivo = "ventas.csv"
+archivo_inv = "inversores.csv"
 
 # 📅 FECHA Y SEMANA
 def obtener_fecha(dia):
@@ -25,13 +26,18 @@ if os.path.exists(archivo):
 else:
     df = pd.DataFrame(columns=["id","dia","producto","precio","fecha","semana"])
 
+if os.path.exists(archivo_inv):
+    df_inv = pd.read_csv(archivo_inv)
+else:
+    df_inv = pd.DataFrame(columns=["nombre","monto","ganancia","total"])
+
 # =========================
 # 🔘 PESTAÑAS
 # =========================
-tab1, tab2 = st.tabs(["📅 Registro", "📚 Historial"])
+tab1, tab2, tab3 = st.tabs(["📅 Registro", "📚 Historial", "💰 Inversores"])
 
 # =========================
-# 📅 TAB 1: REGISTRO
+# 📅 REGISTRO
 # =========================
 with tab1:
 
@@ -44,14 +50,11 @@ with tab1:
     st.write("📅 Fecha:", fecha_actual)
     st.write("📆 Semana:", semana_actual)
 
-    # 🧾 FORMULARIO
-    with st.form("form", clear_on_submit=True):
+    with st.form("form"):
         producto = st.text_input("Producto")
         precio = st.number_input("Precio", min_value=0.0)
 
-        guardar = st.form_submit_button("Guardar venta 💾")
-
-        if guardar:
+        if st.form_submit_button("Guardar venta 💾"):
             if producto and precio > 0:
                 nueva = pd.DataFrame([{
                     "id": len(df) + 1,
@@ -70,33 +73,20 @@ with tab1:
             else:
                 st.warning("Completa los datos")
 
-    # 📊 VENTAS DEL DÍA
     ventas_dia = df[df["dia"] == dia]
 
     st.subheader(f"Ventas de {dia}")
 
     if not ventas_dia.empty:
+        st.dataframe(ventas_dia[["id","producto","precio","fecha"]])
 
-        st.dataframe(
-            ventas_dia[["id","producto","precio","fecha"]],
-            use_container_width=True
-        )
-
-        st.subheader("🧾 Detalle")
-
-        total_dia = 0
-
-        for _, v in ventas_dia.iterrows():
-            st.markdown(f"**🛒 {v['producto']}** — {v['precio']} Bs")
-            total_dia += v["precio"]
-
-        st.write(f"💰 Total del día: {total_dia} Bs")
-
+        total = ventas_dia["precio"].sum()
+        st.write(f"💰 Total: {total} Bs")
     else:
-        st.info("No hay ventas registradas")
+        st.info("No hay ventas")
 
 # =========================
-# 📚 TAB 2: HISTORIAL
+# 📚 HISTORIAL
 # =========================
 with tab2:
 
@@ -105,31 +95,58 @@ with tab2:
     if df.empty:
         st.warning("No hay registros")
     else:
-        semanas = sorted(df["semana"].unique())
-
-        for s in semanas:
+        for s in sorted(df["semana"].unique()):
             st.markdown(f"## 📆 Semana {s}")
+            datos = df[df["semana"] == s]
 
-            datos_semana = df[df["semana"] == s]
+            st.dataframe(datos[["dia","producto","precio","fecha"]])
 
-            st.dataframe(
-                datos_semana[["dia","producto","precio","fecha"]],
-                use_container_width=True
-            )
-
-            total_semana = datos_semana["precio"].sum()
-            st.write(f"💰 Total semana {s}: {total_semana} Bs")
+            total = datos["precio"].sum()
+            st.write(f"💰 Total semana: {total} Bs")
 
 # =========================
-# 📊 RESUMEN GENERAL
+# 💰 INVERSORES
 # =========================
-st.subheader("📊 Resumen general")
+with tab3:
 
-total_general = df["precio"].sum() if not df.empty else 0
-cantidad_total = len(df)
+    st.subheader("💰 Registro de inversores")
 
-st.write("💰 Total vendido:", total_general)
-st.write("📦 Total ventas:", cantidad_total)
+    with st.form("form_inv"):
+        nombre = st.text_input("Nombre del inversor")
+        monto = st.number_input("Monto invertido", min_value=0.0)
+
+        if st.form_submit_button("Guardar inversor"):
+            if nombre and monto > 0:
+
+                ganancia = monto * 0.20
+                total = monto + ganancia
+
+                nuevo = pd.DataFrame([{
+                    "nombre": nombre,
+                    "monto": monto,
+                    "ganancia": ganancia,
+                    "total": total
+                }])
+
+                df_inv = pd.concat([df_inv, nuevo], ignore_index=True)
+                df_inv.to_csv(archivo_inv, index=False)
+
+                st.success("Inversor guardado ✅")
+                st.rerun()
+            else:
+                st.warning("Completa los datos")
+
+    # 📊 MOSTRAR INVERSORES
+    if not df_inv.empty:
+        st.dataframe(df_inv, use_container_width=True)
+
+        total_invertido = df_inv["monto"].sum()
+        total_ganancia = df_inv["ganancia"].sum()
+
+        st.write("💰 Total invertido:", total_invertido)
+        st.write("📈 Ganancia total:", total_ganancia)
+    else:
+        st.info("No hay inversores registrados")
 
 # =========================
 # 🧨 BORRAR TODO
@@ -145,20 +162,18 @@ if not st.session_state.confirmar_borrado:
         st.rerun()
 
 else:
-    st.warning("¿Seguro que quieres borrar TODOS los registros?")
+    st.warning("¿Seguro que quieres borrar TODO?")
 
-    col1, col2 = st.columns(2)
+    if st.button("✅ Sí borrar todo"):
+        if os.path.exists(archivo):
+            os.remove(archivo)
+        if os.path.exists(archivo_inv):
+            os.remove(archivo_inv)
 
-    with col1:
-        if st.button("✅ Sí, borrar todo"):
-            if os.path.exists(archivo):
-                os.remove(archivo)
+        st.success("Todo eliminado")
+        st.session_state.confirmar_borrado = False
+        st.rerun()
 
-            st.success("Todos los datos fueron eliminados")
-            st.session_state.confirmar_borrado = False
-            st.rerun()
-
-    with col2:
-        if st.button("❌ No, cancelar"):
-            st.session_state.confirmar_borrado = False
-            st.rerun()
+    if st.button("❌ Cancelar"):
+        st.session_state.confirmar_borrado = False
+        st.rerun()
