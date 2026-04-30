@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import os
 
 st.set_page_config(page_title="Ventas", layout="centered")
-st.title("Registro de ventas semanal 💰")
+st.title("Registro de ventas suni 💰")
 
 archivo = "ventas.csv"
 archivo_inv = "inversores.csv"
