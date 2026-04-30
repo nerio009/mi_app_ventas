@@ -4,14 +4,13 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 
 st.set_page_config(page_title="Ventas", layout="centered")
-
 st.title("Registro de ventas semanal 💰")
 
-# 🔐 CONEXIÓN A FIREBASE
+# 🔐 CONEXIÓN A FIREBASE (USANDO st.secrets)
 @st.cache_resource
 def conectar_firebase():
     if not firebase_admin._apps:
-        cred = credentials.Certificate("mi-app-de-ventas-6f000-firebase-adminsdk-fbsvc-59f54e0558.json")
+        cred = credentials.Certificate(dict(st.secrets["firebase"]))
         firebase_admin.initialize_app(cred)
     return firestore.client()
 
@@ -20,14 +19,11 @@ db = conectar_firebase()
 # 📅 FUNCIÓN FECHA
 def obtener_fecha(dia):
     dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
-    
     hoy = datetime.now()
     indice_hoy = hoy.weekday()
     indice_dia = dias.index(dia)
-    
     diferencia = indice_dia - indice_hoy
     fecha = hoy + timedelta(days=diferencia)
-    
     return fecha.strftime("%d-%m-%Y")
 
 dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
@@ -35,17 +31,15 @@ dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"
 # 📌 SELECCIÓN DE DÍA
 dia = st.selectbox("Selecciona el día", dias)
 fecha_actual = obtener_fecha(dia)
-
 st.write("📅 Fecha:", fecha_actual)
 
-# 🔥 ❌ QUITAMOS CACHE AQUÍ (IMPORTANTE)
+# 🔎 LEER DATOS (SIN CACHE PARA VER CAMBIOS INMEDIATOS)
 def obtener_ventas_por_dia(dia):
     ventas = []
     try:
         ref = db.collection("ventas").where("dia", "==", dia).stream()
         for v in ref:
-            data = v.to_dict()
-            ventas.append(data)
+            ventas.append(v.to_dict())
     except Exception as e:
         st.error("Error leyendo datos ❌")
         st.write(e)
@@ -61,10 +55,8 @@ with st.form("form_venta", clear_on_submit=True):
     if guardar:
         if not producto:
             st.warning("Ingresa el producto ⚠️")
-
         elif precio <= 0:
             st.error("El precio debe ser mayor a 0 ❌")
-
         else:
             try:
                 db.collection("ventas").add({
@@ -76,19 +68,15 @@ with st.form("form_venta", clear_on_submit=True):
                 })
 
                 st.success("✅ Venta guardada correctamente")
-
-                # 🔥 RECARGAR AUTOMÁTICAMENTE
                 st.rerun()
 
             except Exception as e:
                 st.error("Error guardando en Firebase ❌")
                 st.write(e)
 
-# 📊 OBTENER VENTAS
-ventas_dia = obtener_ventas_por_dia(dia)
-
-# 📅 MOSTRAR VENTAS
+# 📊 MOSTRAR VENTAS DEL DÍA
 st.subheader(f"Ventas de {dia}")
+ventas_dia = obtener_ventas_por_dia(dia)
 
 total_dia = 0
 
@@ -121,7 +109,6 @@ for d in dias:
 
 # 💸 INVERSIÓN
 inversion = st.number_input("💸 Inversión semanal", min_value=0.0)
-
 ganancia = total_semana - inversion
 
 st.write("🧾 Total vendido:", total_semana)
