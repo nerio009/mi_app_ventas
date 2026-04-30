@@ -55,11 +55,14 @@ with tab1:
     st.write("📅 Fecha:", fecha_actual)
     st.write("📆 Semana:", semana_actual)
 
-    with st.form("form"):
+    # 🔥 FORMULARIO LIMPIO AUTOMÁTICO
+    with st.form("form", clear_on_submit=True):
         producto = st.text_input("Producto")
         precio_texto = st.text_input("Precio (Bs)")
 
-        if st.form_submit_button("Guardar venta 💾"):
+        guardar = st.form_submit_button("Guardar venta 💾")
+
+        if guardar:
             try:
                 precio = float(precio_texto)
 
@@ -77,13 +80,14 @@ with tab1:
                     df.to_csv(archivo, index=False)
 
                     st.success("Venta guardada ✅")
-                    st.rerun()
+
                 else:
                     st.warning("Completa los datos correctamente")
 
             except:
                 st.error("Ingresa un número válido")
 
+    # 📊 VENTAS
     ventas_dia = df[df["dia"] == dia]
 
     st.subheader(f"Ventas de {dia}")
@@ -127,7 +131,7 @@ with tab3:
 
     st.subheader("💰 Registro de inversores")
 
-    with st.form("form_inv"):
+    with st.form("form_inv", clear_on_submit=True):
         nombre = st.text_input("Nombre del inversor")
         monto_texto = st.text_input("Monto invertido (Bs)")
         porcentaje_texto = st.text_input("Porcentaje (%)", value="20")
@@ -154,7 +158,7 @@ with tab3:
                     df_inv.to_csv(archivo_inv, index=False)
 
                     st.success("Inversor guardado ✅")
-                    st.rerun()
+
                 else:
                     st.warning("Completa los datos")
 
