@@ -65,7 +65,7 @@ if not ventas_dia.empty:
         use_container_width=True
     )
 
-    # 🧾 DETALLE CLARO
+    # 🧾 DETALLE
     st.subheader("🧾 Detalle de ventas")
 
     total_dia = 0
@@ -76,7 +76,7 @@ if not ventas_dia.empty:
 
     st.write(f"💰 Total del día: {total_dia} Bs")
 
-    # ❌ ELIMINAR
+    # ❌ ELIMINAR POR ID
     st.subheader("Eliminar venta")
 
     id_eliminar = st.number_input("ID a eliminar", min_value=1, step=1)
@@ -111,3 +111,33 @@ elif ganancia == 0:
     st.info("Empate 🤝")
 else:
     st.error("Pérdida ❌")
+
+# 🧨 ELIMINAR TODO (CON CONFIRMACIÓN)
+st.subheader("⚠️ Zona peligrosa")
+
+if "confirmar_borrado" not in st.session_state:
+    st.session_state.confirmar_borrado = False
+
+if not st.session_state.confirmar_borrado:
+    if st.button("🗑 Eliminar TODO el registro"):
+        st.session_state.confirmar_borrado = True
+        st.rerun()
+
+else:
+    st.warning("¿Estás seguro que quieres borrar TODO?")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("✅ Sí, eliminar todo"):
+            df = df.iloc[0:0]
+            df.to_csv(archivo, index=False)
+
+            st.success("Todos los datos fueron eliminados")
+            st.session_state.confirmar_borrado = False
+            st.rerun()
+
+    with col2:
+        if st.button("❌ No, cancelar"):
+            st.session_state.confirmar_borrado = False
+            st.rerun()
