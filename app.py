@@ -1,124 +1,73 @@
 import streamlit as st
+import pandas as pd
 from datetime import datetime, timedelta
-import firebase_admin
-from firebase_admin import credentials, firestore
+import os
 
 st.set_page_config(page_title="Ventas", layout="centered")
 st.title("Registro de ventas semanal 💰")
 
-# 🔐 CONEXIÓN A FIREBASE (USANDO st.secrets)
-@st.cache_resource
-def conectar_firebase():
-    if not firebase_admin._apps:
-        cred = credentials.Certificate(dict(st.secrets["firebase"]))
-        firebase_admin.initialize_app(cred)
-    return firestore.client()
-
-db = conectar_firebase()
+archivo = "ventas.csv"
 
 # 📅 FUNCIÓN FECHA
 def obtener_fecha(dia):
     dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+    
     hoy = datetime.now()
     indice_hoy = hoy.weekday()
     indice_dia = dias.index(dia)
+    
     diferencia = indice_dia - indice_hoy
     fecha = hoy + timedelta(days=diferencia)
+    
     return fecha.strftime("%d-%m-%Y")
 
 dias = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
 
-# 📌 SELECCIÓN DE DÍA
+# 📌 SELECCIÓN
 dia = st.selectbox("Selecciona el día", dias)
 fecha_actual = obtener_fecha(dia)
+
 st.write("📅 Fecha:", fecha_actual)
 
-# 🔎 LEER DATOS (SIN CACHE PARA VER CAMBIOS INMEDIATOS)
-def obtener_ventas_por_dia(dia):
-    ventas = []
-    try:
-        ref = db.collection("ventas").where("dia", "==", dia).stream()
-        for v in ref:
-            ventas.append(v.to_dict())
-    except Exception as e:
-        st.error("Error leyendo datos ❌")
-        st.write(e)
-    return ventas
+# 📥 LEER ARCHIVO
+if os.path.exists(archivo):
+    df = pd.read_csv(archivo)
+else:
+    df = pd.DataFrame(columns=["dia", "producto", "precio", "fecha"])
 
 # 🧾 FORMULARIO
-with st.form("form_venta", clear_on_submit=True):
+with st.form("form"):
     producto = st.text_input("Producto")
-    precio = st.number_input("Precio", min_value=0.0, step=0.1)
-
+    precio = st.number_input("Precio", min_value=0.0)
+    
     guardar = st.form_submit_button("Guardar venta 💾")
 
     if guardar:
-        if not producto:
-            st.warning("Ingresa el producto ⚠️")
-        elif precio <= 0:
-            st.error("El precio debe ser mayor a 0 ❌")
+        if producto and precio > 0:
+            nueva = pd.DataFrame([{
+                "dia": dia,
+                "producto": producto,
+                "precio": precio,
+                "fecha": fecha_actual
+            }])
+
+            df = pd.concat([df, nueva], ignore_index=True)
+            df.to_csv(archivo, index=False)
+
+            st.success("Venta guardada ✅")
+            st.rerun()
         else:
-            try:
-                db.collection("ventas").add({
-                    "dia": dia,
-                    "producto": producto,
-                    "precio": float(precio),
-                    "fecha": fecha_actual,
-                    "timestamp": datetime.now()
-                })
+            st.warning("Completa los datos")
 
-                st.success("✅ Venta guardada correctamente")
-                st.rerun()
+# 📊 FILTRAR
+ventas_dia = df[df["dia"] == dia]
 
-            except Exception as e:
-                st.error("Error guardando en Firebase ❌")
-                st.write(e)
-
-# 📊 MOSTRAR VENTAS DEL DÍA
 st.subheader(f"Ventas de {dia}")
-ventas_dia = obtener_ventas_por_dia(dia)
 
-total_dia = 0
+if not ventas_dia.empty:
+    st.dataframe(ventas_dia)
 
-if ventas_dia:
-    for v in ventas_dia:
-        precio = float(v.get("precio", 0))
-        st.write(f"{v.get('producto', 'Sin nombre')} - {precio} Bs")
-        total_dia += precio
+    total = ventas_dia["precio"].sum()
+    st.write(f"💰 Total: {total} Bs")
 else:
-    st.info("No hay ventas registradas")
-
-st.write(f"💰 Total del día: {total_dia} Bs")
-
-# 📊 RESUMEN SEMANAL
-st.subheader("📊 Resumen semanal")
-
-total_semana = 0
-cantidad_total = 0
-
-for d in dias:
-    ventas_d = obtener_ventas_por_dia(d)
-
-    total_d = sum(float(v.get("precio", 0)) for v in ventas_d)
-    cantidad_d = len(ventas_d)
-
-    st.write(f"{d.capitalize()}: {cantidad_d} ventas | {total_d} Bs")
-
-    total_semana += total_d
-    cantidad_total += cantidad_d
-
-# 💸 INVERSIÓN
-inversion = st.number_input("💸 Inversión semanal", min_value=0.0)
-ganancia = total_semana - inversion
-
-st.write("🧾 Total vendido:", total_semana)
-st.write("📦 Total de ventas:", cantidad_total)
-st.write("💵 Ganancia:", ganancia)
-
-# 📈 RESULTADO
-if ganancia > 0:
-    st.success("Resultado: Hubo ganancia 💰")
-elif ganancia == 0:
-    st.info("Resultado: Se recuperó la inversión 🤝")
-else:
-    st.error("Resultado: Hubo pérdida ❌")
+    st.info("No hay ventas")
