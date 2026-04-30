@@ -7,7 +7,7 @@ st.set_page_config(page_title="Ventas", layout="centered")
 
 st.title("Registro de ventas semanal 💰")
 
-# 🔐 CONEXIÓN CACHEADA
+# 🔐 CONEXIÓN A FIREBASE
 @st.cache_resource
 def conectar_firebase():
     if not firebase_admin._apps:
@@ -38,18 +38,16 @@ fecha_actual = obtener_fecha(dia)
 
 st.write("📅 Fecha:", fecha_actual)
 
-# 📥 CACHE DE DATOS (solo por día)
-@st.cache_data(ttl=5)
+# 🔥 ❌ QUITAMOS CACHE AQUÍ (IMPORTANTE)
 def obtener_ventas_por_dia(dia):
     ventas = []
     try:
         ref = db.collection("ventas").where("dia", "==", dia).stream()
         for v in ref:
             data = v.to_dict()
-            if "precio" in data:
-                ventas.append(data)
+            ventas.append(data)
     except Exception as e:
-        st.warning("Error leyendo datos")
+        st.error("Error leyendo datos ❌")
         st.write(e)
     return ventas
 
@@ -77,20 +75,16 @@ with st.form("form_venta", clear_on_submit=True):
                     "timestamp": datetime.now()
                 })
 
-                st.success("Venta guardada ✔️")
+                st.success("✅ Venta guardada correctamente")
 
-                # 🔥 refrescar cache
-                st.cache_data.clear()
+                # 🔥 RECARGAR AUTOMÁTICAMENTE
+                st.rerun()
 
             except Exception as e:
                 st.error("Error guardando en Firebase ❌")
                 st.write(e)
 
-# 🔄 BOTÓN RECARGAR
-if st.button("🔄 Actualizar datos"):
-    st.cache_data.clear()
-
-# 📊 OBTENER VENTAS DEL DÍA
+# 📊 OBTENER VENTAS
 ventas_dia = obtener_ventas_por_dia(dia)
 
 # 📅 MOSTRAR VENTAS
@@ -98,14 +92,17 @@ st.subheader(f"Ventas de {dia}")
 
 total_dia = 0
 
-for v in ventas_dia:
-    precio = float(v.get("precio", 0))
-    st.write(f"{v.get('producto', 'Sin nombre')} - {precio} Bs")
-    total_dia += precio
+if ventas_dia:
+    for v in ventas_dia:
+        precio = float(v.get("precio", 0))
+        st.write(f"{v.get('producto', 'Sin nombre')} - {precio} Bs")
+        total_dia += precio
+else:
+    st.info("No hay ventas registradas")
 
 st.write(f"💰 Total del día: {total_dia} Bs")
 
-# 📊 RESUMEN SEMANAL (optimizado)
+# 📊 RESUMEN SEMANAL
 st.subheader("📊 Resumen semanal")
 
 total_semana = 0
