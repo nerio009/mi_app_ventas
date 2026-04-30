@@ -18,7 +18,7 @@ def obtener_fecha(dia):
 def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
-# 💰 FORMATO BONITO
+# 💰 FORMATO
 def bs(n):
     if n == int(n):
         return f"{int(n):,} Bs"
@@ -38,7 +38,7 @@ if os.path.exists(archivo_inv):
 else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
-# 🔘 PESTAÑAS
+# 🔘 TABS
 tab1, tab2, tab3 = st.tabs(["📅 Registro", "📚 Historial", "💰 Inversores"])
 
 # =========================
@@ -55,14 +55,11 @@ with tab1:
     st.write("📅 Fecha:", fecha_actual)
     st.write("📆 Semana:", semana_actual)
 
-    # 🔥 FORMULARIO LIMPIO AUTOMÁTICO
     with st.form("form", clear_on_submit=True):
         producto = st.text_input("Producto")
         precio_texto = st.text_input("Precio (Bs)")
 
-        guardar = st.form_submit_button("Guardar venta 💾")
-
-        if guardar:
+        if st.form_submit_button("Guardar venta 💾"):
             try:
                 precio = float(precio_texto)
 
@@ -80,28 +77,10 @@ with tab1:
                     df.to_csv(archivo, index=False)
 
                     st.success("Venta guardada ✅")
-
                 else:
-                    st.warning("Completa los datos correctamente")
-
+                    st.warning("Completa los datos")
             except:
                 st.error("Ingresa un número válido")
-
-    # 📊 VENTAS
-    ventas_dia = df[df["dia"] == dia]
-
-    st.subheader(f"Ventas de {dia}")
-
-    if not ventas_dia.empty:
-        df_mostrar = ventas_dia.copy()
-        df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
-
-        st.dataframe(df_mostrar[["id","producto","precio","fecha"]])
-
-        total = ventas_dia["precio"].sum()
-        st.write(f"💰 Total: {bs(total)}")
-    else:
-        st.info("No hay ventas")
 
 # =========================
 # 📚 HISTORIAL
@@ -133,7 +112,7 @@ with tab3:
 
     with st.form("form_inv", clear_on_submit=True):
         nombre = st.text_input("Nombre del inversor")
-        monto_texto = st.text_input("Monto invertido (Bs)")
+        monto_texto = st.text_input("Monto (Bs)")
         porcentaje_texto = st.text_input("Porcentaje (%)", value="20")
 
         if st.form_submit_button("Guardar inversor"):
@@ -142,7 +121,6 @@ with tab3:
                 porcentaje = float(porcentaje_texto)
 
                 if nombre and monto > 0:
-
                     ganancia = monto * (porcentaje / 100)
                     total = monto + ganancia
 
@@ -158,55 +136,38 @@ with tab3:
                     df_inv.to_csv(archivo_inv, index=False)
 
                     st.success("Inversor guardado ✅")
-
                 else:
                     st.warning("Completa los datos")
-
             except:
-                st.error("Ingresa valores numéricos válidos")
+                st.error("Datos inválidos")
 
+    # 📊 MOSTRAR + ELIMINAR
     if not df_inv.empty:
 
-        df_mostrar = df_inv.copy()
-        df_mostrar["monto"] = df_mostrar["monto"].apply(bs)
-        df_mostrar["ganancia"] = df_mostrar["ganancia"].apply(bs)
-        df_mostrar["total"] = df_mostrar["total"].apply(bs)
-        df_mostrar["porcentaje"] = df_mostrar["porcentaje"].astype(str) + "%"
+        st.subheader("Lista de inversores")
 
-        st.dataframe(df_mostrar, use_container_width=True)
+        for i, row in df_inv.iterrows():
 
-        total_invertido = df_inv["monto"].sum()
-        total_ganancia = df_inv["ganancia"].sum()
+            col1, col2, col3 = st.columns([4,2,2])
 
-        st.write("💰 Total invertido:", bs(total_invertido))
-        st.write("📈 Ganancia total:", bs(total_ganancia))
+            with col1:
+                st.markdown(
+                    f"**{row['nombre']}** — {bs(row['monto'])} | "
+                    f"{row['porcentaje']}% → {bs(row['total'])}"
+                )
+
+            with col2:
+                if st.button(f"🗑 Eliminar {i}", key=f"del_{i}"):
+                    st.session_state[f"confirm_{i}"] = True
+
+            with col3:
+                if st.session_state.get(f"confirm_{i}", False):
+                    if st.button(f"✅ Confirmar {i}", key=f"conf_{i}"):
+                        df_inv = df_inv.drop(i).reset_index(drop=True)
+                        df_inv.to_csv(archivo_inv, index=False)
+
+                        st.success("Inversor eliminado")
+                        st.rerun()
 
     else:
         st.info("No hay inversores registrados")
-
-# =========================
-# 🧨 BORRAR TODO
-# =========================
-st.subheader("⚠️ Modo prueba")
-
-if "confirmar_borrado" not in st.session_state:
-    st.session_state.confirmar_borrado = False
-
-if not st.session_state.confirmar_borrado:
-    if st.button("🗑 Borrar TODO"):
-        st.session_state.confirmar_borrado = True
-        st.rerun()
-else:
-    if st.button("✅ Confirmar borrado"):
-        if os.path.exists(archivo):
-            os.remove(archivo)
-        if os.path.exists(archivo_inv):
-            os.remove(archivo_inv)
-
-        st.success("Datos eliminados")
-        st.session_state.confirmar_borrado = False
-        st.rerun()
-
-    if st.button("❌ Cancelar"):
-        st.session_state.confirmar_borrado = False
-        st.rerun()
