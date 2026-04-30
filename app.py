@@ -89,18 +89,18 @@ else:
     st.info("No hay ventas registradas")
 
 # =========================
-# 📚 HISTORIAL (TOGGLE)
+# 📚 HISTORIAL (TOGGLE CORRECTO)
 # =========================
 st.subheader("📚 Historial")
 
 if "mostrar_historial" not in st.session_state:
     st.session_state.mostrar_historial = False
 
-# Texto dinámico del botón
 texto_boton = "📖 Ocultar historial" if st.session_state.mostrar_historial else "📖 Ver historial semanal"
 
 if st.button(texto_boton):
     st.session_state.mostrar_historial = not st.session_state.mostrar_historial
+    st.rerun()  # 🔥 evita doble clic
 
 if st.session_state.mostrar_historial:
 
