@@ -18,13 +18,13 @@ def obtener_fecha(dia):
 def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
-# 💰 FORMATO MONEDA
+# 💰 FORMATO
 def bs(n):
     return f"{n:.2f} Bs"
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
-# 📥 CARGAR DATOS
+# 📥 DATOS
 if os.path.exists(archivo):
     df = pd.read_csv(archivo)
 else:
@@ -35,9 +35,7 @@ if os.path.exists(archivo_inv):
 else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
-# =========================
-# 🔘 PESTAÑAS
-# =========================
+# 🔘 TABS
 tab1, tab2, tab3 = st.tabs(["📅 Registro", "📚 Historial", "💰 Inversores"])
 
 # =========================
@@ -56,26 +54,32 @@ with tab1:
 
     with st.form("form"):
         producto = st.text_input("Producto")
-        precio = st.number_input("Precio", min_value=0.0)
+        precio_texto = st.text_input("Precio (Bs)")  # 🔥 ahora vacío
 
         if st.form_submit_button("Guardar venta 💾"):
-            if producto and precio > 0:
-                nueva = pd.DataFrame([{
-                    "id": len(df) + 1,
-                    "dia": dia,
-                    "producto": producto,
-                    "precio": precio,
-                    "fecha": fecha_actual,
-                    "semana": semana_actual
-                }])
+            try:
+                precio = float(precio_texto)
 
-                df = pd.concat([df, nueva], ignore_index=True)
-                df.to_csv(archivo, index=False)
+                if producto and precio > 0:
+                    nueva = pd.DataFrame([{
+                        "id": len(df) + 1,
+                        "dia": dia,
+                        "producto": producto,
+                        "precio": precio,
+                        "fecha": fecha_actual,
+                        "semana": semana_actual
+                    }])
 
-                st.success("Venta guardada ✅")
-                st.rerun()
-            else:
-                st.warning("Completa los datos")
+                    df = pd.concat([df, nueva], ignore_index=True)
+                    df.to_csv(archivo, index=False)
+
+                    st.success("Venta guardada ✅")
+                    st.rerun()
+                else:
+                    st.warning("Completa los datos correctamente")
+
+            except:
+                st.error("Ingresa un número válido")
 
     ventas_dia = df[df["dia"] == dia]
 
@@ -117,32 +121,38 @@ with tab3:
 
     with st.form("form_inv"):
         nombre = st.text_input("Nombre del inversor")
-        monto = st.number_input("Monto invertido", min_value=0.0)
-        porcentaje = st.number_input("Porcentaje de ganancia (%)", min_value=0.0, value=20.0)
+        monto_texto = st.text_input("Monto invertido (Bs)")
+        porcentaje_texto = st.text_input("Porcentaje (%)", value="20")
 
         if st.form_submit_button("Guardar inversor"):
-            if nombre and monto > 0:
+            try:
+                monto = float(monto_texto)
+                porcentaje = float(porcentaje_texto)
 
-                ganancia = monto * (porcentaje / 100)
-                total = monto + ganancia
+                if nombre and monto > 0:
 
-                nuevo = pd.DataFrame([{
-                    "nombre": nombre,
-                    "monto": monto,
-                    "porcentaje": porcentaje,
-                    "ganancia": ganancia,
-                    "total": total
-                }])
+                    ganancia = monto * (porcentaje / 100)
+                    total = monto + ganancia
 
-                df_inv = pd.concat([df_inv, nuevo], ignore_index=True)
-                df_inv.to_csv(archivo_inv, index=False)
+                    nuevo = pd.DataFrame([{
+                        "nombre": nombre,
+                        "monto": monto,
+                        "porcentaje": porcentaje,
+                        "ganancia": ganancia,
+                        "total": total
+                    }])
 
-                st.success("Inversor guardado ✅")
-                st.rerun()
-            else:
-                st.warning("Completa los datos")
+                    df_inv = pd.concat([df_inv, nuevo], ignore_index=True)
+                    df_inv.to_csv(archivo_inv, index=False)
 
-    # 📊 MOSTRAR INVERSORES BONITO
+                    st.success("Inversor guardado ✅")
+                    st.rerun()
+                else:
+                    st.warning("Completa los datos")
+
+            except:
+                st.error("Ingresa valores numéricos válidos")
+
     if not df_inv.empty:
 
         df_mostrar = df_inv.copy()
@@ -153,15 +163,6 @@ with tab3:
 
         st.dataframe(df_mostrar, use_container_width=True)
 
-        total_invertido = df_inv["monto"].sum()
-        total_ganancia = df_inv["ganancia"].sum()
-
-        st.write("💰 Total invertido:", bs(total_invertido))
-        st.write("📈 Ganancia total:", bs(total_ganancia))
-
-    else:
-        st.info("No hay inversores registrados")
-
 # =========================
 # 🧨 BORRAR TODO
 # =========================
@@ -171,20 +172,17 @@ if "confirmar_borrado" not in st.session_state:
     st.session_state.confirmar_borrado = False
 
 if not st.session_state.confirmar_borrado:
-    if st.button("🗑 Borrar TODOS los registros"):
+    if st.button("🗑 Borrar TODO"):
         st.session_state.confirmar_borrado = True
         st.rerun()
-
 else:
-    st.warning("¿Seguro que quieres borrar TODO?")
-
-    if st.button("✅ Sí borrar todo"):
+    if st.button("✅ Confirmar borrado"):
         if os.path.exists(archivo):
             os.remove(archivo)
         if os.path.exists(archivo_inv):
             os.remove(archivo_inv)
 
-        st.success("Todo eliminado")
+        st.success("Datos eliminados")
         st.session_state.confirmar_borrado = False
         st.rerun()
 
