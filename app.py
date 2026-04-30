@@ -18,9 +18,12 @@ def obtener_fecha(dia):
 def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
-# 💰 FORMATO
+# 💰 FORMATO BONITO
 def bs(n):
-    return f"{n:.2f} Bs"
+    if n == int(n):
+        return f"{int(n):,} Bs"
+    else:
+        return f"{n:,.2f} Bs"
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
@@ -35,7 +38,7 @@ if os.path.exists(archivo_inv):
 else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
-# 🔘 TABS
+# 🔘 PESTAÑAS
 tab1, tab2, tab3 = st.tabs(["📅 Registro", "📚 Historial", "💰 Inversores"])
 
 # =========================
@@ -54,7 +57,7 @@ with tab1:
 
     with st.form("form"):
         producto = st.text_input("Producto")
-        precio_texto = st.text_input("Precio (Bs)")  # 🔥 ahora vacío
+        precio_texto = st.text_input("Precio (Bs)")
 
         if st.form_submit_button("Guardar venta 💾"):
             try:
@@ -86,7 +89,10 @@ with tab1:
     st.subheader(f"Ventas de {dia}")
 
     if not ventas_dia.empty:
-        st.dataframe(ventas_dia[["id","producto","precio","fecha"]])
+        df_mostrar = ventas_dia.copy()
+        df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
+
+        st.dataframe(df_mostrar[["id","producto","precio","fecha"]])
 
         total = ventas_dia["precio"].sum()
         st.write(f"💰 Total: {bs(total)}")
@@ -105,11 +111,13 @@ with tab2:
     else:
         for s in sorted(df["semana"].unique()):
             st.markdown(f"## 📆 Semana {s}")
-            datos = df[df["semana"] == s]
+
+            datos = df[df["semana"] == s].copy()
+            datos["precio"] = datos["precio"].apply(bs)
 
             st.dataframe(datos[["dia","producto","precio","fecha"]])
 
-            total = datos["precio"].sum()
+            total = df[df["semana"] == s]["precio"].sum()
             st.write(f"💰 Total semana: {bs(total)}")
 
 # =========================
@@ -162,6 +170,15 @@ with tab3:
         df_mostrar["porcentaje"] = df_mostrar["porcentaje"].astype(str) + "%"
 
         st.dataframe(df_mostrar, use_container_width=True)
+
+        total_invertido = df_inv["monto"].sum()
+        total_ganancia = df_inv["ganancia"].sum()
+
+        st.write("💰 Total invertido:", bs(total_invertido))
+        st.write("📈 Ganancia total:", bs(total_ganancia))
+
+    else:
+        st.info("No hay inversores registrados")
 
 # =========================
 # 🧨 BORRAR TODO
