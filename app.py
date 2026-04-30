@@ -89,11 +89,20 @@ else:
     st.info("No hay ventas registradas")
 
 # =========================
-# 📚 BOTÓN HISTORIAL
+# 📚 HISTORIAL (TOGGLE)
 # =========================
 st.subheader("📚 Historial")
 
-if st.button("📖 Ver historial semanal"):
+if "mostrar_historial" not in st.session_state:
+    st.session_state.mostrar_historial = False
+
+# Texto dinámico del botón
+texto_boton = "📖 Ocultar historial" if st.session_state.mostrar_historial else "📖 Ver historial semanal"
+
+if st.button(texto_boton):
+    st.session_state.mostrar_historial = not st.session_state.mostrar_historial
+
+if st.session_state.mostrar_historial:
 
     if df.empty:
         st.warning("No hay registros")
@@ -125,7 +134,7 @@ st.write("💰 Total vendido:", total_general)
 st.write("📦 Total ventas:", cantidad_total)
 
 # =========================
-# 🧨 BORRAR TODO (MODO PRUEBA)
+# 🧨 BORRAR TODO (CONFIRMACIÓN)
 # =========================
 st.subheader("⚠️ Modo prueba")
 
