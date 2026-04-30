@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 import os
 
 st.set_page_config(page_title="Ventas", layout="centered")
-st.title("Registro de ventas suni 💰")
+st.title("Registro de ventas semanal 💰")
 
 archivo = "ventas.csv"
 archivo_inv = "inversores.csv"
 
-# 📅 FECHA Y SEMANA
+# 📅 FUNCIONES
 def obtener_fecha(dia):
     dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
     hoy = datetime.now()
@@ -18,7 +18,6 @@ def obtener_fecha(dia):
 def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
-# 💰 FORMATO
 def bs(n):
     if n == int(n):
         return f"{int(n):,} Bs"
@@ -31,7 +30,9 @@ dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 if os.path.exists(archivo):
     df = pd.read_csv(archivo)
 else:
-    df = pd.DataFrame(columns=["id","dia","producto","precio","fecha","semana"])
+    df = pd.DataFrame(columns=[
+        "id","dia","producto","precio","cliente","lugar","pago","fecha","semana"
+    ])
 
 if os.path.exists(archivo_inv):
     df_inv = pd.read_csv(archivo_inv)
@@ -58,6 +59,10 @@ with tab1:
     with st.form("form", clear_on_submit=True):
         producto = st.text_input("Producto")
         precio_texto = st.text_input("Precio (Bs)")
+        cliente = st.text_input("Nombre del cliente")
+        lugar = st.text_input("Lugar de entrega")
+
+        pago = st.selectbox("Estado de pago", ["Pendiente", "Cancelado"])
 
         if st.form_submit_button("Guardar venta 💾"):
             try:
@@ -69,6 +74,9 @@ with tab1:
                         "dia": dia,
                         "producto": producto,
                         "precio": precio,
+                        "cliente": cliente,
+                        "lugar": lugar,
+                        "pago": pago,
                         "fecha": fecha_actual,
                         "semana": semana_actual
                     }])
@@ -82,18 +90,26 @@ with tab1:
             except:
                 st.error("Ingresa un número válido")
 
+    # 📊 MOSTRAR VENTAS
     ventas_dia = df[df["dia"] == dia]
 
     st.subheader(f"Ventas de {dia}")
 
     if not ventas_dia.empty:
+
         df_mostrar = ventas_dia.copy()
         df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
 
-        st.dataframe(df_mostrar[["id","producto","precio","fecha"]])
+        st.dataframe(
+            df_mostrar[[
+                "producto","precio","cliente","lugar","pago","fecha"
+            ]],
+            use_container_width=True
+        )
 
         total = ventas_dia["precio"].sum()
         st.write(f"💰 Total: {bs(total)}")
+
     else:
         st.info("No hay ventas")
 
@@ -113,7 +129,12 @@ with tab2:
             datos = df[df["semana"] == s].copy()
             datos["precio"] = datos["precio"].apply(bs)
 
-            st.dataframe(datos[["dia","producto","precio","fecha"]])
+            st.dataframe(
+                datos[[
+                    "dia","producto","precio","cliente","lugar","pago","fecha"
+                ]],
+                use_container_width=True
+            )
 
             total = df[df["semana"] == s]["precio"].sum()
             st.write(f"💰 Total semana: {bs(total)}")
@@ -156,9 +177,7 @@ with tab3:
             except:
                 st.error("Datos inválidos")
 
-    # 📊 TABLA BONITA
     if not df_inv.empty:
-
         df_tabla = df_inv.copy()
         df_tabla["monto"] = df_tabla["monto"].apply(bs)
         df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
@@ -166,19 +185,6 @@ with tab3:
         df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
 
         st.dataframe(df_tabla, use_container_width=True)
-
-        st.subheader("Eliminar inversores")
-
-        for i in range(len(df_inv)):
-            if st.button(f"🗑 Eliminar inversor {i}", key=f"del_{i}"):
-                df_inv = df_inv.drop(i).reset_index(drop=True)
-                df_inv.to_csv(archivo_inv, index=False)
-
-                st.success("Inversor eliminado")
-                st.rerun()
-
-    else:
-        st.info("No hay inversores registrados")
 
 # =========================
 # 🧨 BORRAR TODO
