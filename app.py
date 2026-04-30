@@ -82,6 +82,22 @@ with tab1:
             except:
                 st.error("Ingresa un número válido")
 
+    # 📊 MOSTRAR VENTAS
+    ventas_dia = df[df["dia"] == dia]
+
+    st.subheader(f"Ventas de {dia}")
+
+    if not ventas_dia.empty:
+        df_mostrar = ventas_dia.copy()
+        df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
+
+        st.dataframe(df_mostrar[["id","producto","precio","fecha"]])
+
+        total = ventas_dia["precio"].sum()
+        st.write(f"💰 Total: {bs(total)}")
+    else:
+        st.info("No hay ventas")
+
 # =========================
 # 📚 HISTORIAL
 # =========================
@@ -141,7 +157,7 @@ with tab3:
             except:
                 st.error("Datos inválidos")
 
-    # 📊 MOSTRAR + ELIMINAR
+    # 📊 LISTA + ELIMINAR INDIVIDUAL
     if not df_inv.empty:
 
         st.subheader("Lista de inversores")
@@ -157,17 +173,44 @@ with tab3:
                 )
 
             with col2:
-                if st.button(f"🗑 Eliminar {i}", key=f"del_{i}"):
+                if st.button(f"🗑 {i}", key=f"del_{i}"):
                     st.session_state[f"confirm_{i}"] = True
 
             with col3:
                 if st.session_state.get(f"confirm_{i}", False):
-                    if st.button(f"✅ Confirmar {i}", key=f"conf_{i}"):
+                    if st.button(f"✅ OK {i}", key=f"conf_{i}"):
                         df_inv = df_inv.drop(i).reset_index(drop=True)
                         df_inv.to_csv(archivo_inv, index=False)
 
-                        st.success("Inversor eliminado")
+                        st.success("Eliminado")
                         st.rerun()
 
     else:
         st.info("No hay inversores registrados")
+
+# =========================
+# 🧨 BORRAR TODO (VENTAS + INVERSORES)
+# =========================
+st.subheader("⚠️ Modo prueba")
+
+if "confirmar_borrado" not in st.session_state:
+    st.session_state.confirmar_borrado = False
+
+if not st.session_state.confirmar_borrado:
+    if st.button("🗑 Borrar TODO"):
+        st.session_state.confirmar_borrado = True
+        st.rerun()
+else:
+    if st.button("✅ Confirmar borrado"):
+        if os.path.exists(archivo):
+            os.remove(archivo)
+        if os.path.exists(archivo_inv):
+            os.remove(archivo_inv)
+
+        st.success("Todo eliminado")
+        st.session_state.confirmar_borrado = False
+        st.rerun()
+
+    if st.button("❌ Cancelar"):
+        st.session_state.confirmar_borrado = False
+        st.rerun()
