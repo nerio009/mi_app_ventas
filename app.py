@@ -39,15 +39,19 @@ if os.path.exists(archivo_inv):
 else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
-# 🔘 TABS
-tab1, tab2, tab3 = st.tabs(["📅 Registro", "📚 Historial", "💰 Inversores"])
+# 🔘 TABS (AGREGAMOS NUEVA)
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📅 Registro", 
+    "📚 Historial", 
+    "💰 Inversores",
+    "🧾 Pendientes"
+])
 
 # =========================
 # 📅 REGISTRO
 # =========================
 with tab1:
 
-    # 🔥 DÍA AUTOMÁTICO
     indice_hoy = datetime.now().weekday()
     dia = st.selectbox("Selecciona el día", dias, index=indice_hoy)
 
@@ -96,16 +100,12 @@ with tab1:
     st.subheader(f"Ventas de {dia}")
 
     if not ventas_dia.empty:
-
         df_mostrar = ventas_dia.copy()
         df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
 
-        st.dataframe(
-            df_mostrar[
-                ["producto","precio","cliente","lugar","pago","fecha"]
-            ],
-            use_container_width=True
-        )
+        st.dataframe(df_mostrar[
+            ["producto","precio","cliente","lugar","pago","fecha"]
+        ])
 
         total = ventas_dia["precio"].sum()
         st.write(f"💰 Total: {bs(total)}")
@@ -129,15 +129,18 @@ with tab2:
             datos = df[df["semana"] == s].copy()
             datos["precio"] = datos["precio"].apply(bs)
 
-            st.dataframe(
-                datos[
-                    ["dia","producto","precio","cliente","lugar","pago","fecha"]
-                ],
-                use_container_width=True
-            )
+            st.dataframe(datos[
+                ["dia","producto","precio","cliente","lugar","pago","fecha"]
+            ])
 
-            total = df[df["semana"] == s]["precio"].sum()
-            st.write(f"💰 Total semana: {bs(total)}")
+            # 🔥 SOLO CANCELADOS
+            cancelados = df[
+                (df["semana"] == s) & (df["pago"] == "Cancelado")
+            ]
+
+            total = cancelados["precio"].sum()
+
+            st.write(f"💰 Total REAL (Cancelados): {bs(total)}")
 
 # =========================
 # 💰 INVERSORES
@@ -178,14 +181,36 @@ with tab3:
                 st.error("Datos inválidos")
 
     if not df_inv.empty:
-
         df_tabla = df_inv.copy()
         df_tabla["monto"] = df_tabla["monto"].apply(bs)
         df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
         df_tabla["total"] = df_tabla["total"].apply(bs)
         df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
 
-        st.dataframe(df_tabla, use_container_width=True)
+        st.dataframe(df_tabla)
+
+# =========================
+# 🧾 PENDIENTES (NUEVO)
+# =========================
+with tab4:
+
+    st.subheader("🧾 Ventas pendientes")
+
+    pendientes = df[df["pago"] == "Pendiente"]
+
+    if not pendientes.empty:
+        df_p = pendientes.copy()
+        df_p["precio"] = df_p["precio"].apply(bs)
+
+        st.dataframe(df_p[
+            ["dia","producto","precio","cliente","lugar","fecha"]
+        ])
+
+        total_pendiente = pendientes["precio"].sum()
+        st.write(f"💸 Total pendiente: {bs(total_pendiente)}")
+
+    else:
+        st.success("No hay deudas pendientes 🎉")
 
 # =========================
 # 🧨 BORRAR TODO
