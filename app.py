@@ -47,7 +47,9 @@ tab1, tab2, tab3 = st.tabs(["📅 Registro", "📚 Historial", "💰 Inversores"
 # =========================
 with tab1:
 
-    dia = st.selectbox("Selecciona el día", dias)
+    # 🔥 DÍA AUTOMÁTICO
+    indice_hoy = datetime.now().weekday()
+    dia = st.selectbox("Selecciona el día", dias, index=indice_hoy)
 
     fecha_obj = obtener_fecha(dia)
     fecha_actual = fecha_obj.strftime("%d-%m-%Y")
@@ -61,7 +63,6 @@ with tab1:
         precio_texto = st.text_input("Precio (Bs)")
         cliente = st.text_input("Nombre del cliente")
         lugar = st.text_input("Lugar de entrega")
-
         pago = st.selectbox("Estado de pago", ["Pendiente", "Cancelado"])
 
         if st.form_submit_button("Guardar venta 💾"):
@@ -90,7 +91,6 @@ with tab1:
             except:
                 st.error("Ingresa un número válido")
 
-    # 📊 MOSTRAR VENTAS
     ventas_dia = df[df["dia"] == dia]
 
     st.subheader(f"Ventas de {dia}")
@@ -101,9 +101,9 @@ with tab1:
         df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
 
         st.dataframe(
-            df_mostrar[[
-                "producto","precio","cliente","lugar","pago","fecha"
-            ]],
+            df_mostrar[
+                ["producto","precio","cliente","lugar","pago","fecha"]
+            ],
             use_container_width=True
         )
 
@@ -130,9 +130,9 @@ with tab2:
             datos["precio"] = datos["precio"].apply(bs)
 
             st.dataframe(
-                datos[[
-                    "dia","producto","precio","cliente","lugar","pago","fecha"
-                ]],
+                datos[
+                    ["dia","producto","precio","cliente","lugar","pago","fecha"]
+                ],
                 use_container_width=True
             )
 
@@ -178,6 +178,7 @@ with tab3:
                 st.error("Datos inválidos")
 
     if not df_inv.empty:
+
         df_tabla = df_inv.copy()
         df_tabla["monto"] = df_tabla["monto"].apply(bs)
         df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
