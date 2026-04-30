@@ -18,6 +18,10 @@ def obtener_fecha(dia):
 def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
+# 💰 FORMATO MONEDA
+def bs(n):
+    return f"{n:.2f} Bs"
+
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
 # 📥 CARGAR DATOS
@@ -29,7 +33,7 @@ else:
 if os.path.exists(archivo_inv):
     df_inv = pd.read_csv(archivo_inv)
 else:
-    df_inv = pd.DataFrame(columns=["nombre","monto","ganancia","total"])
+    df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
 # =========================
 # 🔘 PESTAÑAS
@@ -81,7 +85,7 @@ with tab1:
         st.dataframe(ventas_dia[["id","producto","precio","fecha"]])
 
         total = ventas_dia["precio"].sum()
-        st.write(f"💰 Total: {total} Bs")
+        st.write(f"💰 Total: {bs(total)}")
     else:
         st.info("No hay ventas")
 
@@ -102,7 +106,7 @@ with tab2:
             st.dataframe(datos[["dia","producto","precio","fecha"]])
 
             total = datos["precio"].sum()
-            st.write(f"💰 Total semana: {total} Bs")
+            st.write(f"💰 Total semana: {bs(total)}")
 
 # =========================
 # 💰 INVERSORES
@@ -114,16 +118,18 @@ with tab3:
     with st.form("form_inv"):
         nombre = st.text_input("Nombre del inversor")
         monto = st.number_input("Monto invertido", min_value=0.0)
+        porcentaje = st.number_input("Porcentaje de ganancia (%)", min_value=0.0, value=20.0)
 
         if st.form_submit_button("Guardar inversor"):
             if nombre and monto > 0:
 
-                ganancia = monto * 0.20
+                ganancia = monto * (porcentaje / 100)
                 total = monto + ganancia
 
                 nuevo = pd.DataFrame([{
                     "nombre": nombre,
                     "monto": monto,
+                    "porcentaje": porcentaje,
                     "ganancia": ganancia,
                     "total": total
                 }])
@@ -136,15 +142,23 @@ with tab3:
             else:
                 st.warning("Completa los datos")
 
-    # 📊 MOSTRAR INVERSORES
+    # 📊 MOSTRAR INVERSORES BONITO
     if not df_inv.empty:
-        st.dataframe(df_inv, use_container_width=True)
+
+        df_mostrar = df_inv.copy()
+        df_mostrar["monto"] = df_mostrar["monto"].apply(bs)
+        df_mostrar["ganancia"] = df_mostrar["ganancia"].apply(bs)
+        df_mostrar["total"] = df_mostrar["total"].apply(bs)
+        df_mostrar["porcentaje"] = df_mostrar["porcentaje"].astype(str) + "%"
+
+        st.dataframe(df_mostrar, use_container_width=True)
 
         total_invertido = df_inv["monto"].sum()
         total_ganancia = df_inv["ganancia"].sum()
 
-        st.write("💰 Total invertido:", total_invertido)
-        st.write("📈 Ganancia total:", total_ganancia)
+        st.write("💰 Total invertido:", bs(total_invertido))
+        st.write("📈 Ganancia total:", bs(total_ganancia))
+
     else:
         st.info("No hay inversores registrados")
 
