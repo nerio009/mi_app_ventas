@@ -19,10 +19,7 @@ def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
 def bs(n):
-    if n == int(n):
-        return f"{int(n):,} Bs"
-    else:
-        return f"{n:,.2f} Bs"
+    return f"{n:,.2f} Bs" if n != int(n) else f"{int(n):,} Bs"
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
@@ -39,18 +36,18 @@ if os.path.exists(archivo_inv):
 else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
-# 🔘 TABS (AGREGAMOS NUEVA)
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📅 Registro", 
-    "📚 Historial", 
-    "💰 Inversores",
-    "🧾 Pendientes"
-])
+# ======================================
+# 🔥 NUEVA NAVEGACIÓN (PRO)
+# ======================================
+menu = st.sidebar.radio(
+    "📂 Navegación",
+    ["📅 Registro", "📚 Historial", "🧾 Pendientes", "💰 Inversores"]
+)
 
 # =========================
 # 📅 REGISTRO
 # =========================
-with tab1:
+if menu == "📅 Registro":
 
     indice_hoy = datetime.now().weekday()
     dia = st.selectbox("Selecciona el día", dias, index=indice_hoy)
@@ -116,7 +113,7 @@ with tab1:
 # =========================
 # 📚 HISTORIAL
 # =========================
-with tab2:
+elif menu == "📚 Historial":
 
     st.subheader("📚 Historial semanal")
 
@@ -133,19 +130,40 @@ with tab2:
                 ["dia","producto","precio","cliente","lugar","pago","fecha"]
             ])
 
-            # 🔥 SOLO CANCELADOS
             cancelados = df[
                 (df["semana"] == s) & (df["pago"] == "Cancelado")
             ]
 
             total = cancelados["precio"].sum()
-
             st.write(f"💰 Total REAL (Cancelados): {bs(total)}")
 
 # =========================
-# 💰 INVERSORES
+# 🧾 PENDIENTES
 # =========================
-with tab3:
+elif menu == "🧾 Pendientes":
+
+    st.subheader("🧾 Ventas pendientes")
+
+    pendientes = df[df["pago"] == "Pendiente"]
+
+    if not pendientes.empty:
+        df_p = pendientes.copy()
+        df_p["precio"] = df_p["precio"].apply(bs)
+
+        st.dataframe(df_p[
+            ["dia","producto","precio","cliente","lugar","fecha"]
+        ])
+
+        total_pendiente = pendientes["precio"].sum()
+        st.write(f"💸 Total pendiente: {bs(total_pendiente)}")
+
+    else:
+        st.success("No hay deudas pendientes 🎉")
+
+# =========================
+# 💰 INVERSORES (SEPARADO)
+# =========================
+elif menu == "💰 Inversores":
 
     st.subheader("💰 Registro de inversores")
 
@@ -190,42 +208,20 @@ with tab3:
         st.dataframe(df_tabla)
 
 # =========================
-# 🧾 PENDIENTES (NUEVO)
-# =========================
-with tab4:
-
-    st.subheader("🧾 Ventas pendientes")
-
-    pendientes = df[df["pago"] == "Pendiente"]
-
-    if not pendientes.empty:
-        df_p = pendientes.copy()
-        df_p["precio"] = df_p["precio"].apply(bs)
-
-        st.dataframe(df_p[
-            ["dia","producto","precio","cliente","lugar","fecha"]
-        ])
-
-        total_pendiente = pendientes["precio"].sum()
-        st.write(f"💸 Total pendiente: {bs(total_pendiente)}")
-
-    else:
-        st.success("No hay deudas pendientes 🎉")
-
-# =========================
 # 🧨 BORRAR TODO
 # =========================
-st.subheader("⚠️ Modo prueba")
+st.sidebar.markdown("---")
+st.sidebar.subheader("⚠️ Modo prueba")
 
 if "confirmar_borrado" not in st.session_state:
     st.session_state.confirmar_borrado = False
 
 if not st.session_state.confirmar_borrado:
-    if st.button("🗑 Borrar TODO"):
+    if st.sidebar.button("🗑 Borrar TODO"):
         st.session_state.confirmar_borrado = True
         st.rerun()
 else:
-    if st.button("✅ Confirmar borrado"):
+    if st.sidebar.button("✅ Confirmar borrado"):
         if os.path.exists(archivo):
             os.remove(archivo)
         if os.path.exists(archivo_inv):
@@ -235,6 +231,6 @@ else:
         st.session_state.confirmar_borrado = False
         st.rerun()
 
-    if st.button("❌ Cancelar"):
+    if st.sidebar.button("❌ Cancelar"):
         st.session_state.confirmar_borrado = False
         st.rerun()
