@@ -102,8 +102,15 @@ if menu == "📅 Registro":
             ["estado","producto","precio","cliente","lugar","pago","fecha"]
         ])
 
+        # 🔥 NUEVO: TOTAL Y CANTIDAD
+        total = ventas_dia["precio"].sum()
+        cantidad = len(ventas_dia)
+
+        st.write(f"💰 Total vendido: {bs(total)}")
+        st.write(f"📦 Cantidad de ventas: {cantidad}")
+
 # =========================
-# 📚 HISTORIAL
+# 📚 HISTORIAL (igual)
 # =========================
 elif menu == "📚 Historial":
 
@@ -136,7 +143,7 @@ elif menu == "📚 Historial":
                 st.rerun()
 
 # =========================
-# 🧾 PENDIENTES
+# 🧾 PENDIENTES (MEJORADO)
 # =========================
 elif menu == "🧾 Pendientes":
 
@@ -151,8 +158,22 @@ elif menu == "🧾 Pendientes":
             ["estado","dia","producto","precio","cliente","lugar","fecha"]
         ])
 
+        st.markdown("### 🗑 Eliminar pendiente")
+
+        for i, row in pendientes.iterrows():
+            cols = st.columns([2,2,2,1])
+            cols[0].write(row["producto"])
+            cols[1].write(row["cliente"])
+            cols[2].write(bs(row["precio"]))
+
+            if cols[3].button("🗑", key=f"pend_{row['id']}"):
+                df = df[df["id"] != row["id"]]
+                df.to_csv(archivo, index=False)
+                st.success("Pendiente eliminado ✅")
+                st.rerun()
+
 # =========================
-# 💰 INVERSORES (ARREGLADO)
+# 💰 INVERSORES (MEJORADO)
 # =========================
 elif menu == "💰 Inversores":
 
@@ -197,6 +218,21 @@ elif menu == "💰 Inversores":
         df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
 
         st.dataframe(df_tabla)
+
+        # 🔥 ELIMINAR INVERSOR UNO POR UNO
+        st.markdown("### 🗑 Eliminar inversor")
+
+        for i, row in df_inv.iterrows():
+            cols = st.columns([2,2,2,1])
+            cols[0].write(row["nombre"])
+            cols[1].write(bs(row["monto"]))
+            cols[2].write(f"{row['porcentaje']}%")
+
+            if cols[3].button("🗑", key=f"inv_{i}"):
+                df_inv = df_inv.drop(i)
+                df_inv.to_csv(archivo_inv, index=False)
+                st.success("Inversor eliminado ✅")
+                st.rerun()
 
 # =========================
 # 🧨 BORRAR SOLO VENTAS
