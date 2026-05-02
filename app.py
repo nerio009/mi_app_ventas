@@ -1,12 +1,13 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import os
 
 # 🔗 GOOGLE SHEETS
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 🔗 CONEXIÓN SEGURA
+# 🔗 CONEXIÓN GOOGLE SHEETS
 try:
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -28,6 +29,8 @@ except:
 st.set_page_config(page_title="Ventas", layout="centered")
 st.title("Registro de ventas semanal 💰")
 
+archivo_inv = "inversores.csv"
+
 # 📅 FUNCIONES
 def obtener_fecha(dia):
     dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
@@ -46,7 +49,7 @@ def estado_icono(pago):
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
 # =========================
-# 📥 DATOS DESDE GOOGLE SHEETS
+# 📥 DATOS DESDE SHEETS
 # =========================
 if sheet:
     datos = sheet.get_all_records()
@@ -199,12 +202,56 @@ elif menu == "🧾 Pendientes":
         ])
 
 # =========================
-# 💰 INVERSORES
+# 💰 INVERSORES (COMO ANTES)
 # =========================
 elif menu == "💰 Inversores":
 
-    st.subheader("💰 (Aún puedes mantener CSV aquí si quieres)")
-    st.info("Se puede migrar después igual que ventas")
+    if os.path.exists(archivo_inv):
+        df_inv = pd.read_csv(archivo_inv)
+    else:
+        df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
+
+    st.subheader("💰 Registro de inversores")
+
+    with st.form("form_inv", clear_on_submit=True):
+        nombre = st.text_input("Nombre del inversor")
+        monto_texto = st.text_input("Monto (Bs)")
+        porcentaje_texto = st.text_input("Porcentaje (%)", value="20")
+
+        if st.form_submit_button("Guardar inversor"):
+            try:
+                monto = float(monto_texto)
+                porcentaje = float(porcentaje_texto)
+
+                if nombre and monto > 0:
+                    ganancia = monto * (porcentaje / 100)
+                    total = monto + ganancia
+
+                    nuevo = pd.DataFrame([{
+                        "nombre": nombre,
+                        "monto": monto,
+                        "porcentaje": porcentaje,
+                        "ganancia": ganancia,
+                        "total": total
+                    }])
+
+                    df_inv = pd.concat([df_inv, nuevo], ignore_index=True)
+                    df_inv.to_csv(archivo_inv, index=False)
+
+                    st.success("Inversor guardado ✅")
+                else:
+                    st.warning("Completa los datos")
+            except:
+                st.error("Datos inválidos")
+
+    if not df_inv.empty:
+        df_tabla = df_inv.copy()
+        df_tabla["monto"] = df_tabla["monto"].apply(bs)
+        df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
+        df_tabla["total"] = df_tabla["total"].apply(bs)
+        df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
+
+        st.dataframe(df_tabla)
 
 # =========================
 # 🧨 BORRAR TODO
