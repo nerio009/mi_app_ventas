@@ -21,7 +21,6 @@ def obtener_semana(fecha):
 def bs(n):
     return f"{int(n):,} Bs" if n == int(n) else f"{n:,.2f} Bs"
 
-# 🔥 NUEVA FUNCIÓN VISUAL
 def estado_icono(pago):
     return "✅" if pago == "Cancelado" else "❌"
 
@@ -153,14 +152,51 @@ elif menu == "🧾 Pendientes":
         ])
 
 # =========================
-# 💰 INVERSORES
+# 💰 INVERSORES (ARREGLADO)
 # =========================
 elif menu == "💰 Inversores":
 
-    st.subheader("💰 Inversores")
+    st.subheader("💰 Registro de inversores")
+
+    with st.form("form_inv", clear_on_submit=True):
+        nombre = st.text_input("Nombre del inversor")
+        monto_texto = st.text_input("Monto (Bs)")
+        porcentaje_texto = st.text_input("Porcentaje (%)", value="20")
+
+        if st.form_submit_button("Guardar inversor"):
+            try:
+                monto = float(monto_texto)
+                porcentaje = float(porcentaje_texto)
+
+                if nombre and monto > 0:
+                    ganancia = monto * (porcentaje / 100)
+                    total = monto + ganancia
+
+                    nuevo = pd.DataFrame([{
+                        "nombre": nombre,
+                        "monto": monto,
+                        "porcentaje": porcentaje,
+                        "ganancia": ganancia,
+                        "total": total
+                    }])
+
+                    df_inv = pd.concat([df_inv, nuevo], ignore_index=True)
+                    df_inv.to_csv(archivo_inv, index=False)
+
+                    st.success("Inversor guardado ✅")
+                else:
+                    st.warning("Completa los datos")
+            except:
+                st.error("Datos inválidos")
 
     if not df_inv.empty:
-        st.dataframe(df_inv)
+        df_tabla = df_inv.copy()
+        df_tabla["monto"] = df_tabla["monto"].apply(bs)
+        df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
+        df_tabla["total"] = df_tabla["total"].apply(bs)
+        df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
+
+        st.dataframe(df_tabla)
 
 # =========================
 # 🧨 BORRAR SOLO VENTAS
