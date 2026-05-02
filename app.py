@@ -40,7 +40,7 @@ else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
 # ======================================
-# 🔥 NAVEGACIÓN (SEPARADO)
+# 🔥 NAVEGACIÓN
 # ======================================
 menu = st.sidebar.radio(
     "📂 Navegación",
@@ -75,7 +75,7 @@ if menu == "📅 Registro":
 
                 if producto and precio > 0:
                     nueva = pd.DataFrame([{
-                        "id": len(df) + 1,
+                        "id": (df["id"].max() + 1) if not df.empty else 1,
                         "dia": dia,
                         "producto": producto,
                         "precio": precio,
@@ -104,7 +104,7 @@ if menu == "📅 Registro":
         df_mostrar["precio"] = df_mostrar["precio"].apply(bs)
 
         st.dataframe(df_mostrar[
-            ["producto","precio","cliente","lugar","pago","fecha"]
+            ["id","producto","precio","cliente","lugar","pago","fecha"]
         ])
 
         total = ventas_dia["precio"].sum()
@@ -112,14 +112,11 @@ if menu == "📅 Registro":
     else:
         st.info("No hay ventas")
 
-    # =========================
-    # 🗑 BORRAR VENTA INDIVIDUAL
-    # =========================
+    # 🗑 Eliminar venta (lista rápida en Registro)
     st.subheader("🗑 Eliminar venta")
-
     if not ventas_dia.empty:
         opciones = ventas_dia.apply(
-            lambda x: f"{x['producto']} - {x['cliente']} - {x['precio']} Bs",
+            lambda x: f"ID {int(x['id'])} | {x['producto']} - {x['cliente']} - {x['precio']} Bs",
             axis=1
         ).tolist()
 
@@ -130,8 +127,9 @@ if menu == "📅 Registro":
         )
 
         if st.button("❌ Eliminar venta"):
-            index = ventas_dia.index[opciones.index(seleccion)]
-            df = df.drop(index)
+            idx_local = opciones.index(seleccion)
+            id_sel = int(ventas_dia.iloc[idx_local]["id"])
+            df = df[df["id"] != id_sel]
             df.to_csv(archivo, index=False)
             st.success("Venta eliminada ✅")
             st.rerun()
@@ -150,19 +148,39 @@ elif menu == "📚 Historial":
             st.markdown(f"## 📆 Semana {s}")
 
             datos = df[df["semana"] == s].copy()
-            datos["precio"] = datos["precio"].apply(bs)
+            datos_fmt = datos.copy()
+            datos_fmt["precio"] = datos_fmt["precio"].apply(bs)
 
-            st.dataframe(datos[
-                ["dia","producto","precio","cliente","lugar","pago","fecha"]
+            st.dataframe(datos_fmt[
+                ["id","dia","producto","precio","cliente","lugar","pago","fecha"]
             ])
 
             # 🔥 SOLO CANCELADOS
             cancelados = df[
                 (df["semana"] == s) & (df["pago"] == "Cancelado")
             ]
-
             total = cancelados["precio"].sum()
             st.write(f"💰 Total REAL (Cancelados): {bs(total)}")
+
+            # =========================
+            # 🗑 ELIMINAR CON ICONO POR FILA (HISTORIAL)
+            # =========================
+            st.markdown("### 🗑 Eliminar por registro")
+            for i, row in datos.iterrows():
+                c1, c2, c3, c4, c5, c6, c7 = st.columns([1.2,1.5,1.2,1.5,1.2,1.2,0.6])
+
+                c1.write(row["dia"])
+                c2.write(row["producto"])
+                c3.write(bs(row["precio"]))
+                c4.write(row["cliente"])
+                c5.write(row["lugar"])
+                c6.write(row["pago"])
+
+                if c7.button("🗑", key=f"del_hist_{int(row['id'])}"):
+                    df = df[df["id"] != int(row["id"])]
+                    df.to_csv(archivo, index=False)
+                    st.success("Venta eliminada ✅")
+                    st.rerun()
 
 # =========================
 # 🧾 PENDIENTES
@@ -178,7 +196,7 @@ elif menu == "🧾 Pendientes":
         df_p["precio"] = df_p["precio"].apply(bs)
 
         st.dataframe(df_p[
-            ["dia","producto","precio","cliente","lugar","fecha"]
+            ["id","dia","producto","precio","cliente","lugar","fecha"]
         ])
 
         total_pendiente = pendientes["precio"].sum()
@@ -233,9 +251,7 @@ elif menu == "💰 Inversores":
 
         st.dataframe(df_tabla)
 
-    # =========================
-    # 🗑 BORRAR INVERSOR
-    # =========================
+    # 🗑 BORRAR INVERSOR INDIVIDUAL
     st.subheader("🗑 Eliminar inversor")
 
     if not df_inv.empty:
@@ -254,26 +270,25 @@ elif menu == "💰 Inversores":
             st.rerun()
 
 # =========================
-# 🧨 BORRAR TODO
+# 🧨 BORRAR TODO (SOLO VENTAS)
 # =========================
 st.sidebar.markdown("---")
-st.sidebar.subheader("⚠️ Modo prueba")
+st.sidebar.subheader("⚠️ Modo prueba (solo ventas)")
 
 if "confirmar_borrado" not in st.session_state:
     st.session_state.confirmar_borrado = False
 
 if not st.session_state.confirmar_borrado:
-    if st.sidebar.button("🗑 Borrar TODO"):
+    if st.sidebar.button("🗑 Borrar TODAS las ventas"):
         st.session_state.confirmar_borrado = True
         st.rerun()
 else:
     if st.sidebar.button("✅ Confirmar borrado"):
+        # SOLO borra ventas
         if os.path.exists(archivo):
             os.remove(archivo)
-        if os.path.exists(archivo_inv):
-            os.remove(archivo_inv)
 
-        st.success("Todo eliminado")
+        st.success("Ventas eliminadas")
         st.session_state.confirmar_borrado = False
         st.rerun()
 
