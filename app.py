@@ -102,7 +102,6 @@ if menu == "📅 Registro":
             ["estado","producto","precio","cliente","lugar","pago","fecha"]
         ])
 
-        # 🔥 NUEVO: TOTAL Y CANTIDAD
         total = ventas_dia["precio"].sum()
         cantidad = len(ventas_dia)
 
@@ -110,9 +109,41 @@ if menu == "📅 Registro":
         st.write(f"📦 Cantidad de ventas: {cantidad}")
 
 # =========================
-# 📚 HISTORIAL (igual)
+# 📚 HISTORIAL
 # =========================
 elif menu == "📚 Historial":
+
+    # 🔥 RESUMEN GENERAL
+    if not df.empty:
+        total_general = df["precio"].sum()
+        cantidad_general = len(df)
+
+        total_cancelado = df[df["pago"] == "Cancelado"]["precio"].sum()
+        cantidad_cancelado = len(df[df["pago"] == "Cancelado"])
+
+        total_pendiente = df[df["pago"] == "Pendiente"]["precio"].sum()
+        cantidad_pendiente = len(df[df["pago"] == "Pendiente"])
+
+        st.markdown("## 📊 Resumen general")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.write("### 💰 Todas las ventas")
+            st.write(f"Total: {bs(total_general)}")
+            st.write(f"Cantidad: {cantidad_general}")
+
+        with col2:
+            st.write("### ✅ Cancelados")
+            st.write(f"Total: {bs(total_cancelado)}")
+            st.write(f"Cantidad: {cantidad_cancelado}")
+
+        with col3:
+            st.write("### ❌ Pendientes")
+            st.write(f"Total: {bs(total_pendiente)}")
+            st.write(f"Cantidad: {cantidad_pendiente}")
+
+        st.markdown("---")
 
     for s in sorted(df["semana"].unique()):
         st.markdown(f"## 📆 Semana {s}")
@@ -143,7 +174,7 @@ elif menu == "📚 Historial":
                 st.rerun()
 
 # =========================
-# 🧾 PENDIENTES (MEJORADO)
+# 🧾 PENDIENTES
 # =========================
 elif menu == "🧾 Pendientes":
 
@@ -164,7 +195,9 @@ elif menu == "🧾 Pendientes":
             cols = st.columns([2,2,2,1])
             cols[0].write(row["producto"])
             cols[1].write(row["cliente"])
-            cols[2].write(bs(row["precio"]))
+            cols[2].write(bs(row["precio"])
+
+            )
 
             if cols[3].button("🗑", key=f"pend_{row['id']}"):
                 df = df[df["id"] != row["id"]]
@@ -173,7 +206,7 @@ elif menu == "🧾 Pendientes":
                 st.rerun()
 
 # =========================
-# 💰 INVERSORES (MEJORADO)
+# 💰 INVERSORES
 # =========================
 elif menu == "💰 Inversores":
 
@@ -219,7 +252,6 @@ elif menu == "💰 Inversores":
 
         st.dataframe(df_tabla)
 
-        # 🔥 ELIMINAR INVERSOR UNO POR UNO
         st.markdown("### 🗑 Eliminar inversor")
 
         for i, row in df_inv.iterrows():
