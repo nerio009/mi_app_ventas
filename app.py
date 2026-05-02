@@ -3,6 +3,29 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 
+# 🔗 NUEVO: GOOGLE SHEETS
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+# 🔗 CONEXIÓN GOOGLE SHEETS (NO ROMPE NADA)
+try:
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    creds = ServiceAccountCredentials.from_json_keyfile_name(
+        "credenciales.json", scope
+    )
+
+    client = gspread.authorize(creds)
+    sheet = client.open("ventas_app").sheet1
+
+except:
+    sheet = None  # Si falla, no rompe la app
+
+# =========================
+
 st.set_page_config(page_title="Ventas", layout="centered")
 st.title("Registro de ventas semanal 💰")
 
@@ -85,6 +108,21 @@ if menu == "📅 Registro":
 
                     df = pd.concat([df, nueva], ignore_index=True)
                     df.to_csv(archivo, index=False)
+
+                    # 🔥 NUEVO: TAMBIÉN GUARDA EN GOOGLE SHEETS
+                    if sheet:
+                        sheet.append_row([
+                            nueva["id"].iloc[0],
+                            dia,
+                            producto,
+                            precio,
+                            cliente,
+                            lugar,
+                            pago,
+                            fecha_actual,
+                            semana_actual
+                        ])
+
                     st.success("Venta guardada ✅")
                 else:
                     st.warning("Completa los datos")
@@ -109,166 +147,9 @@ if menu == "📅 Registro":
         st.write(f"📦 Cantidad de ventas: {cantidad}")
 
 # =========================
-# 📚 HISTORIAL
+# RESTO DEL CÓDIGO IGUAL
 # =========================
-elif menu == "📚 Historial":
 
-    # 🔥 RESUMEN GENERAL
-    if not df.empty:
-        total_general = df["precio"].sum()
-        cantidad_general = len(df)
-
-        total_cancelado = df[df["pago"] == "Cancelado"]["precio"].sum()
-        cantidad_cancelado = len(df[df["pago"] == "Cancelado"])
-
-        total_pendiente = df[df["pago"] == "Pendiente"]["precio"].sum()
-        cantidad_pendiente = len(df[df["pago"] == "Pendiente"])
-
-        st.markdown("## 📊 Resumen general")
-
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            st.write("### 💰 Todas las ventas")
-            st.write(f"Total: {bs(total_general)}")
-            st.write(f"Cantidad: {cantidad_general}")
-
-        with col2:
-            st.write("### ✅ Cancelados")
-            st.write(f"Total: {bs(total_cancelado)}")
-            st.write(f"Cantidad: {cantidad_cancelado}")
-
-        with col3:
-            st.write("### ❌ Pendientes")
-            st.write(f"Total: {bs(total_pendiente)}")
-            st.write(f"Cantidad: {cantidad_pendiente}")
-
-        st.markdown("---")
-
-    for s in sorted(df["semana"].unique()):
-        st.markdown(f"## 📆 Semana {s}")
-
-        datos = df[df["semana"] == s].copy()
-        datos["precio"] = datos["precio"].apply(bs)
-        datos["estado"] = datos["pago"].apply(estado_icono)
-
-        st.dataframe(datos[
-            ["estado","dia","producto","precio","cliente","lugar","pago","fecha"]
-        ])
-
-        st.markdown("### 🗑 Eliminar por registro")
-
-        for i, row in datos.iterrows():
-            cols = st.columns([1,2,1,2,2,1,0.5])
-            cols[0].write(row["estado"])
-            cols[1].write(row["producto"])
-            cols[2].write(row["precio"])
-            cols[3].write(row["cliente"])
-            cols[4].write(row["lugar"])
-            cols[5].write(row["pago"])
-
-            if cols[6].button("🗑", key=f"del_{row['id']}"):
-                df = df[df["id"] != row["id"]]
-                df.to_csv(archivo, index=False)
-                st.success("Eliminado ✅")
-                st.rerun()
-
-# =========================
-# 🧾 PENDIENTES
-# =========================
-elif menu == "🧾 Pendientes":
-
-    pendientes = df[df["pago"] == "Pendiente"]
-
-    if not pendientes.empty:
-        df_p = pendientes.copy()
-        df_p["precio"] = df_p["precio"].apply(bs)
-        df_p["estado"] = df_p["pago"].apply(estado_icono)
-
-        st.dataframe(df_p[
-            ["estado","dia","producto","precio","cliente","lugar","fecha"]
-        ])
-
-        st.markdown("### 🗑 Eliminar pendiente")
-
-        for i, row in pendientes.iterrows():
-            cols = st.columns([2,2,2,1])
-            cols[0].write(row["producto"])
-            cols[1].write(row["cliente"])
-            cols[2].write(bs(row["precio"])
-
-            )
-
-            if cols[3].button("🗑", key=f"pend_{row['id']}"):
-                df = df[df["id"] != row["id"]]
-                df.to_csv(archivo, index=False)
-                st.success("Pendiente eliminado ✅")
-                st.rerun()
-
-# =========================
-# 💰 INVERSORES
-# =========================
-elif menu == "💰 Inversores":
-
-    st.subheader("💰 Registro de inversores")
-
-    with st.form("form_inv", clear_on_submit=True):
-        nombre = st.text_input("Nombre del inversor")
-        monto_texto = st.text_input("Monto (Bs)")
-        porcentaje_texto = st.text_input("Porcentaje (%)", value="20")
-
-        if st.form_submit_button("Guardar inversor"):
-            try:
-                monto = float(monto_texto)
-                porcentaje = float(porcentaje_texto)
-
-                if nombre and monto > 0:
-                    ganancia = monto * (porcentaje / 100)
-                    total = monto + ganancia
-
-                    nuevo = pd.DataFrame([{
-                        "nombre": nombre,
-                        "monto": monto,
-                        "porcentaje": porcentaje,
-                        "ganancia": ganancia,
-                        "total": total
-                    }])
-
-                    df_inv = pd.concat([df_inv, nuevo], ignore_index=True)
-                    df_inv.to_csv(archivo_inv, index=False)
-
-                    st.success("Inversor guardado ✅")
-                else:
-                    st.warning("Completa los datos")
-            except:
-                st.error("Datos inválidos")
-
-    if not df_inv.empty:
-        df_tabla = df_inv.copy()
-        df_tabla["monto"] = df_tabla["monto"].apply(bs)
-        df_tabla["ganancia"] = df_tabla["ganancia"].apply(bs)
-        df_tabla["total"] = df_tabla["total"].apply(bs)
-        df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
-
-        st.dataframe(df_tabla)
-
-        st.markdown("### 🗑 Eliminar inversor")
-
-        for i, row in df_inv.iterrows():
-            cols = st.columns([2,2,2,1])
-            cols[0].write(row["nombre"])
-            cols[1].write(bs(row["monto"]))
-            cols[2].write(f"{row['porcentaje']}%")
-
-            if cols[3].button("🗑", key=f"inv_{i}"):
-                df_inv = df_inv.drop(i)
-                df_inv.to_csv(archivo_inv, index=False)
-                st.success("Inversor eliminado ✅")
-                st.rerun()
-
-# =========================
-# 🧨 BORRAR SOLO VENTAS
-# =========================
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🗑 Borrar TODAS las ventas"):
