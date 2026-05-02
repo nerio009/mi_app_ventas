@@ -19,7 +19,10 @@ def obtener_semana(fecha):
     return fecha.isocalendar()[1]
 
 def bs(n):
-    return f"{n:,.2f} Bs" if n != int(n) else f"{int(n):,} Bs"
+    if n == int(n):
+        return f"{int(n):,} Bs"
+    else:
+        return f"{n:,.2f} Bs"
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
@@ -37,7 +40,7 @@ else:
     df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
 # ======================================
-# 🔥 NUEVA NAVEGACIÓN (PRO)
+# 🔥 NAVEGACIÓN (SEPARADO)
 # ======================================
 menu = st.sidebar.radio(
     "📂 Navegación",
@@ -106,9 +109,32 @@ if menu == "📅 Registro":
 
         total = ventas_dia["precio"].sum()
         st.write(f"💰 Total: {bs(total)}")
-
     else:
         st.info("No hay ventas")
+
+    # =========================
+    # 🗑 BORRAR VENTA INDIVIDUAL
+    # =========================
+    st.subheader("🗑 Eliminar venta")
+
+    if not ventas_dia.empty:
+        opciones = ventas_dia.apply(
+            lambda x: f"{x['producto']} - {x['cliente']} - {x['precio']} Bs",
+            axis=1
+        ).tolist()
+
+        seleccion = st.selectbox(
+            "Selecciona venta a eliminar",
+            opciones,
+            key="eliminar_venta"
+        )
+
+        if st.button("❌ Eliminar venta"):
+            index = ventas_dia.index[opciones.index(seleccion)]
+            df = df.drop(index)
+            df.to_csv(archivo, index=False)
+            st.success("Venta eliminada ✅")
+            st.rerun()
 
 # =========================
 # 📚 HISTORIAL
@@ -130,6 +156,7 @@ elif menu == "📚 Historial":
                 ["dia","producto","precio","cliente","lugar","pago","fecha"]
             ])
 
+            # 🔥 SOLO CANCELADOS
             cancelados = df[
                 (df["semana"] == s) & (df["pago"] == "Cancelado")
             ]
@@ -156,12 +183,11 @@ elif menu == "🧾 Pendientes":
 
         total_pendiente = pendientes["precio"].sum()
         st.write(f"💸 Total pendiente: {bs(total_pendiente)}")
-
     else:
         st.success("No hay deudas pendientes 🎉")
 
 # =========================
-# 💰 INVERSORES (SEPARADO)
+# 💰 INVERSORES
 # =========================
 elif menu == "💰 Inversores":
 
@@ -206,6 +232,26 @@ elif menu == "💰 Inversores":
         df_tabla["porcentaje"] = df_tabla["porcentaje"].astype(str) + "%"
 
         st.dataframe(df_tabla)
+
+    # =========================
+    # 🗑 BORRAR INVERSOR
+    # =========================
+    st.subheader("🗑 Eliminar inversor")
+
+    if not df_inv.empty:
+        nombres = df_inv["nombre"].tolist()
+
+        nombre_eliminar = st.selectbox(
+            "Selecciona inversor a eliminar",
+            nombres,
+            key="eliminar_inversor"
+        )
+
+        if st.button("❌ Eliminar inversor"):
+            df_inv = df_inv[df_inv["nombre"] != nombre_eliminar]
+            df_inv.to_csv(archivo_inv, index=False)
+            st.success("Inversor eliminado ✅")
+            st.rerun()
 
 # =========================
 # 🧨 BORRAR TODO
