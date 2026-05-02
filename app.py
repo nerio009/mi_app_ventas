@@ -1,13 +1,12 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-import os
 
-# 🔗 NUEVO: GOOGLE SHEETS
+# 🔗 GOOGLE SHEETS
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# 🔗 CONEXIÓN GOOGLE SHEETS (NO ROMPE NADA)
+# 🔗 CONEXIÓN SEGURA
 try:
     scope = [
         "https://spreadsheets.google.com/feeds",
@@ -22,15 +21,12 @@ try:
     sheet = client.open("ventas_app").sheet1
 
 except:
-    sheet = None  # Si falla, no rompe la app
+    sheet = None
 
 # =========================
 
 st.set_page_config(page_title="Ventas", layout="centered")
 st.title("Registro de ventas semanal 💰")
-
-archivo = "ventas.csv"
-archivo_inv = "inversores.csv"
 
 # 📅 FUNCIONES
 def obtener_fecha(dia):
@@ -49,20 +45,25 @@ def estado_icono(pago):
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
-# 📥 DATOS
-if os.path.exists(archivo):
-    df = pd.read_csv(archivo)
+# =========================
+# 📥 DATOS DESDE GOOGLE SHEETS
+# =========================
+if sheet:
+    datos = sheet.get_all_records()
+    df = pd.DataFrame(datos)
+
+    if df.empty:
+        df = pd.DataFrame(columns=[
+            "id","dia","producto","precio","cliente","lugar","pago","fecha","semana"
+        ])
 else:
     df = pd.DataFrame(columns=[
         "id","dia","producto","precio","cliente","lugar","pago","fecha","semana"
     ])
 
-if os.path.exists(archivo_inv):
-    df_inv = pd.read_csv(archivo_inv)
-else:
-    df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
-
+# =========================
 # 📂 MENU
+# =========================
 menu = st.sidebar.radio(
     "📂 Navegación",
     ["📅 Registro", "📚 Historial", "🧾 Pendientes", "💰 Inversores"]
@@ -94,36 +95,24 @@ if menu == "📅 Registro":
                 precio = float(precio_texto)
 
                 if producto and precio > 0:
-                    nueva = pd.DataFrame([{
-                        "id": (df["id"].max() + 1) if not df.empty else 1,
-                        "dia": dia,
-                        "producto": producto,
-                        "precio": precio,
-                        "cliente": cliente,
-                        "lugar": lugar,
-                        "pago": pago,
-                        "fecha": fecha_actual,
-                        "semana": semana_actual
-                    }])
+                    nuevo_id = (df["id"].max() + 1) if not df.empty else 1
 
-                    df = pd.concat([df, nueva], ignore_index=True)
-                    df.to_csv(archivo, index=False)
-
-                    # 🔥 NUEVO: TAMBIÉN GUARDA EN GOOGLE SHEETS
                     if sheet:
                         sheet.append_row([
-                            nueva["id"].iloc[0],
+                            int(nuevo_id),
                             dia,
                             producto,
-                            precio,
+                            float(precio),
                             cliente,
                             lugar,
                             pago,
                             fecha_actual,
-                            semana_actual
+                            int(semana_actual)
                         ])
 
                     st.success("Venta guardada ✅")
+                    st.rerun()
+
                 else:
                     st.warning("Completa los datos")
             except:
@@ -147,13 +136,83 @@ if menu == "📅 Registro":
         st.write(f"📦 Cantidad de ventas: {cantidad}")
 
 # =========================
-# RESTO DEL CÓDIGO IGUAL
+# 📚 HISTORIAL
 # =========================
+elif menu == "📚 Historial":
 
+    if not df.empty:
+        total_general = df["precio"].sum()
+        cantidad_general = len(df)
+
+        total_cancelado = df[df["pago"] == "Cancelado"]["precio"].sum()
+        cantidad_cancelado = len(df[df["pago"] == "Cancelado"])
+
+        total_pendiente = df[df["pago"] == "Pendiente"]["precio"].sum()
+        cantidad_pendiente = len(df[df["pago"] == "Pendiente"])
+
+        st.markdown("## 📊 Resumen general")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.write("### 💰 Todas las ventas")
+            st.write(f"Total: {bs(total_general)}")
+            st.write(f"Cantidad: {cantidad_general}")
+
+        with col2:
+            st.write("### ✅ Cancelados")
+            st.write(f"Total: {bs(total_cancelado)}")
+            st.write(f"Cantidad: {cantidad_cancelado}")
+
+        with col3:
+            st.write("### ❌ Pendientes")
+            st.write(f"Total: {bs(total_pendiente)}")
+            st.write(f"Cantidad: {cantidad_pendiente}")
+
+        st.markdown("---")
+
+    for s in sorted(df["semana"].dropna().unique()):
+        st.markdown(f"## 📆 Semana {int(s)}")
+
+        datos = df[df["semana"] == s].copy()
+        datos["precio"] = datos["precio"].apply(bs)
+        datos["estado"] = datos["pago"].apply(estado_icono)
+
+        st.dataframe(datos[
+            ["estado","dia","producto","precio","cliente","lugar","pago","fecha"]
+        ])
+
+# =========================
+# 🧾 PENDIENTES
+# =========================
+elif menu == "🧾 Pendientes":
+
+    pendientes = df[df["pago"] == "Pendiente"]
+
+    if not pendientes.empty:
+        df_p = pendientes.copy()
+        df_p["precio"] = df_p["precio"].apply(bs)
+        df_p["estado"] = df_p["pago"].apply(estado_icono)
+
+        st.dataframe(df_p[
+            ["estado","dia","producto","precio","cliente","lugar","fecha"]
+        ])
+
+# =========================
+# 💰 INVERSORES
+# =========================
+elif menu == "💰 Inversores":
+
+    st.subheader("💰 (Aún puedes mantener CSV aquí si quieres)")
+    st.info("Se puede migrar después igual que ventas")
+
+# =========================
+# 🧨 BORRAR TODO
+# =========================
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🗑 Borrar TODAS las ventas"):
-    if os.path.exists(archivo):
-        os.remove(archivo)
+    if sheet:
+        sheet.clear()
         st.success("Ventas eliminadas")
         st.rerun()
