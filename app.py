@@ -3,32 +3,10 @@ import pandas as pd
 from datetime import datetime, timedelta
 import os
 
-# 🔗 GOOGLE SHEETS
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-
-# 🔗 CONEXIÓN GOOGLE SHEETS
-try:
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        "credenciales.json", scope
-    )
-
-    client = gspread.authorize(creds)
-    sheet = client.open("ventas_app").sheet1
-
-except:
-    sheet = None
-
-# =========================
-
 st.set_page_config(page_title="Ventas", layout="centered")
 st.title("Registro de ventas semanal 💰")
 
+archivo = "ventas.csv"
 archivo_inv = "inversores.csv"
 
 # 📅 FUNCIONES
@@ -48,25 +26,20 @@ def estado_icono(pago):
 
 dias = ["lunes","martes","miercoles","jueves","viernes","sabado","domingo"]
 
-# =========================
-# 📥 DATOS DESDE SHEETS
-# =========================
-if sheet:
-    datos = sheet.get_all_records()
-    df = pd.DataFrame(datos)
-
-    if df.empty:
-        df = pd.DataFrame(columns=[
-            "id","dia","producto","precio","cliente","lugar","pago","fecha","semana"
-        ])
+# 📥 DATOS
+if os.path.exists(archivo):
+    df = pd.read_csv(archivo)
 else:
     df = pd.DataFrame(columns=[
         "id","dia","producto","precio","cliente","lugar","pago","fecha","semana"
     ])
 
-# =========================
+if os.path.exists(archivo_inv):
+    df_inv = pd.read_csv(archivo_inv)
+else:
+    df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
+
 # 📂 MENU
-# =========================
 menu = st.sidebar.radio(
     "📂 Navegación",
     ["📅 Registro", "📚 Historial", "🧾 Pendientes", "💰 Inversores"]
@@ -98,24 +71,21 @@ if menu == "📅 Registro":
                 precio = float(precio_texto)
 
                 if producto and precio > 0:
-                    nuevo_id = (df["id"].max() + 1) if not df.empty else 1
+                    nueva = pd.DataFrame([{
+                        "id": (df["id"].max() + 1) if not df.empty else 1,
+                        "dia": dia,
+                        "producto": producto,
+                        "precio": precio,
+                        "cliente": cliente,
+                        "lugar": lugar,
+                        "pago": pago,
+                        "fecha": fecha_actual,
+                        "semana": semana_actual
+                    }])
 
-                    if sheet:
-                        sheet.append_row([
-                            int(nuevo_id),
-                            dia,
-                            producto,
-                            float(precio),
-                            cliente,
-                            lugar,
-                            pago,
-                            fecha_actual,
-                            int(semana_actual)
-                        ])
-
+                    df = pd.concat([df, nueva], ignore_index=True)
+                    df.to_csv(archivo, index=False)
                     st.success("Venta guardada ✅")
-                    st.rerun()
-
                 else:
                     st.warning("Completa los datos")
             except:
@@ -143,6 +113,7 @@ if menu == "📅 Registro":
 # =========================
 elif menu == "📚 Historial":
 
+    # 🔥 RESUMEN GENERAL
     if not df.empty:
         total_general = df["precio"].sum()
         cantidad_general = len(df)
@@ -174,8 +145,8 @@ elif menu == "📚 Historial":
 
         st.markdown("---")
 
-    for s in sorted(df["semana"].dropna().unique()):
-        st.markdown(f"## 📆 Semana {int(s)}")
+    for s in sorted(df["semana"].unique()):
+        st.markdown(f"## 📆 Semana {s}")
 
         datos = df[df["semana"] == s].copy()
         datos["precio"] = datos["precio"].apply(bs)
@@ -184,6 +155,23 @@ elif menu == "📚 Historial":
         st.dataframe(datos[
             ["estado","dia","producto","precio","cliente","lugar","pago","fecha"]
         ])
+
+        st.markdown("### 🗑 Eliminar por registro")
+
+        for i, row in datos.iterrows():
+            cols = st.columns([1,2,1,2,2,1,0.5])
+            cols[0].write(row["estado"])
+            cols[1].write(row["producto"])
+            cols[2].write(row["precio"])
+            cols[3].write(row["cliente"])
+            cols[4].write(row["lugar"])
+            cols[5].write(row["pago"])
+
+            if cols[6].button("🗑", key=f"del_{row['id']}"):
+                df = df[df["id"] != row["id"]]
+                df.to_csv(archivo, index=False)
+                st.success("Eliminado ✅")
+                st.rerun()
 
 # =========================
 # 🧾 PENDIENTES
@@ -201,15 +189,26 @@ elif menu == "🧾 Pendientes":
             ["estado","dia","producto","precio","cliente","lugar","fecha"]
         ])
 
+        st.markdown("### 🗑 Eliminar pendiente")
+
+        for i, row in pendientes.iterrows():
+            cols = st.columns([2,2,2,1])
+            cols[0].write(row["producto"])
+            cols[1].write(row["cliente"])
+            cols[2].write(bs(row["precio"])
+
+            )
+
+            if cols[3].button("🗑", key=f"pend_{row['id']}"):
+                df = df[df["id"] != row["id"]]
+                df.to_csv(archivo, index=False)
+                st.success("Pendiente eliminado ✅")
+                st.rerun()
+
 # =========================
-# 💰 INVERSORES (COMO ANTES)
+# 💰 INVERSORES
 # =========================
 elif menu == "💰 Inversores":
-
-    if os.path.exists(archivo_inv):
-        df_inv = pd.read_csv(archivo_inv)
-    else:
-        df_inv = pd.DataFrame(columns=["nombre","monto","porcentaje","ganancia","total"])
 
     st.subheader("💰 Registro de inversores")
 
@@ -253,13 +252,27 @@ elif menu == "💰 Inversores":
 
         st.dataframe(df_tabla)
 
+        st.markdown("### 🗑 Eliminar inversor")
+
+        for i, row in df_inv.iterrows():
+            cols = st.columns([2,2,2,1])
+            cols[0].write(row["nombre"])
+            cols[1].write(bs(row["monto"]))
+            cols[2].write(f"{row['porcentaje']}%")
+
+            if cols[3].button("🗑", key=f"inv_{i}"):
+                df_inv = df_inv.drop(i)
+                df_inv.to_csv(archivo_inv, index=False)
+                st.success("Inversor eliminado ✅")
+                st.rerun()
+
 # =========================
-# 🧨 BORRAR TODO
+# 🧨 BORRAR SOLO VENTAS
 # =========================
 st.sidebar.markdown("---")
 
 if st.sidebar.button("🗑 Borrar TODAS las ventas"):
-    if sheet:
-        sheet.clear()
+    if os.path.exists(archivo):
+        os.remove(archivo)
         st.success("Ventas eliminadas")
         st.rerun()
